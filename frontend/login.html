@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body {
+      background: linear-gradient(to right, #00c6ff, #0072ff);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 500px;
+      padding: 40px 30px;
+      border-radius: 20px;
+      background-color: white;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      transition: transform 0.3s ease-in-out;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+    }
+
+    h3 {
+      font-weight: 700;
+      background: linear-gradient(to right, #0072ff, #00c6ff);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .form-control {
+      border-radius: 12px;
+      border: 1px solid #ccc;
+      padding: 12px;
+      font-size: 15px;
+      transition: 0.2s ease;
+    }
+
+    .form-control:focus {
+      border-color: #0072ff;
+      box-shadow: 0 0 0 0.2rem rgba(0, 114, 255, 0.25);
+    }
+
+    .btn-login {
+      background: linear-gradient(to right, #00c6ff, #0072ff);
+      border: none;
+      color: white;
+      font-weight: 600;
+      padding: 12px;
+      border-radius: 12px;
+      transition: background 0.3s ease;
+    }
+
+    .btn-login:hover {
+      background: linear-gradient(to left, #00c6ff, #0072ff);
+    }
+
+    .back {
+      background-color: transparent;
+      color: #0072ff;
+      border: 2px solid #0072ff;
+      border-radius: 10px;
+      font-weight: 600;
+      transition: 0.3s;
+    }
+
+    .back:hover {
+      background-color: #0072ff;
+      color: white;
+    }
+
+    #loginMsg {
+      font-size: 14px;
+    }
+
+    @media (max-width: 576px) {
+      .card {
+        padding: 30px 20px;
+      }
+
+      .back {
+        width: 100%;
+        margin-top: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h3 class="text-center mb-4">Login to Your Pastor Pal Laundry Account</h3>
+  
+    <!-- Optional email field commented out
+    <div class="mb-3">
+      <label for="loginEmail" class="form-label">Email:</label>
+      <input type="email" class="form-control" id="loginEmail" placeholder="Enter your email" />
+    </div> -->
+  
+    <div class="mb-3">
+      <label for="loginPassword" class="form-label">Password:</label>
+      <input type="password" class="form-control" id="loginPassword" placeholder="Enter your password" />
+      <small id="capsLockMsg" class="text-warning" style="display:none;">⚠️ Caps Lock is ON</small>
+    </div>
+  
+    <p id="loginMsg" class="text-center fw-bold mt-3"></p>
+  
+    <button class="btn btn-login w-100" onclick="loginUser()">Login</button>
+  
+    <a class="back btn mt-4 w-100" href="index.html">BACK</a>
+  </div>
+  
+  <script>
+    const loginPasswordInput = document.getElementById("loginPassword");
+    const loginBtn = document.querySelector(".btn-login");
+    const msg = document.getElementById("loginMsg");
+    const capsLockMsg = document.getElementById("capsLockMsg");
+  
+    function loginUser() {
+      const loginPassword = loginPasswordInput.value.trim();
+  
+      if (loginPassword === "Princep24") {
+        msg.textContent = "Login successful! Redirecting...";
+        msg.className = "text-success text-center";
+        loginBtn.disabled = true; // disable button to prevent double click
+        setTimeout(() => {
+          window.location.href = "dashboard.html";
+        }, 1500);
+      } else {
+        msg.textContent = "Incorrect password.";
+        msg.className = "text-danger text-center";
+      }
+    }
+  
+    // Enter key triggers login
+    loginPasswordInput.addEventListener("keyup", function(e) {
+      if(e.key === "Enter") loginUser();
+  
+      // Optional: Caps Lock warning
+      capsLockMsg.style.display = e.getModifierState("CapsLock") ? "block" : "none";
+    });
+  </script>
+  
+</body>
+</html>

@@ -1,0 +1,112 @@
+{
+  "customers": [
+    {
+      "id": "1759240217177",
+      "date": "30/09/2025, 14:50:17",
+      "name": "Chukwudi",
+      "phone": "2348118232020",
+      "description": "3 shirts, 2 trousers,7socks",
+      "totalItems": 4,
+      "totalAmount": 1790,
+      "instruction": "Wash & Iron",
+      "status": "Collected",
+      "paid": false,
+      "payments": [],
+      "pickupDate": "2025-09-30"
+    },
+    {
+      "id": "1759167063126",
+      "date": "29/09/2025, 18:31:03",
+      "name": "Wisdom",
+      "phone": "2348118232020",
+      "description": "3 shirts, 2 trousers",
+      "totalItems": 14,
+      "totalAmount": 15000,
+      "status": "Collected",
+      "paid": true,
+      "remaining": 10,
+      "clothesLog": [
+        {
+          "num": 4,
+          "desc": "3 shirts, 1 trouser",
+          "date": "2025-09-29"
+        }
+      ],
+      "payments": [
+        {
+          "method": "POS",
+          "amount": 13000,
+          "date": "2025-09-29"
+        },
+        {
+          "method": "Transfer - Palmpay",
+          "amount": 2000,
+          "date": "2025-09-29"
+        }
+      ],
+      "pickupDate": "2025-09-29"
+    },
+    {
+      "id": "1759167063126",
+      "date": "29/09/2025, 18:31:03",
+      "name": "Wisdom",
+      "phone": "2348118232020",
+      "description": "3 shirts, 2 trousers",
+      "totalItems": 14,
+      "totalAmount": 15000,
+      "status": "Collected",
+      "paid": true,
+      "remaining": 10,
+      "clothesLog": [
+        {
+          "num": 4,
+          "desc": "3 shirts, 1 trouser",
+          "date": "2025-09-29"
+        }
+      ],
+      "payments": [
+        {
+          "method": "POS",
+          "amount": 13000,
+          "date": "2025-09-29"
+        },
+        {
+          "method": "Transfer - Palmpay",
+          "amount": 2000,
+          "date": "2025-09-29"
+        }
+      ],
+      "pickupDate": "2025-09-29",
+      "agreedDate": "2025-10-05"
+    },
+    {
+      "id": "1760299937188",
+      "date": "12/10/2025, 21:12:17",
+      "name": "Daniel",
+      "phone": "23409161133096",
+      "description": "3 shirts, 2 trousers",
+      "totalItems": 5,
+      "totalAmount": 2300,
+      "instruction": "Washing Only",
+      "agreedDate": "2025-10-26",
+      "status": "Pending",
+      "paid": true,
+      "overdue": false,
+      "payments": [
+        {
+          "method": "Transfer - Zenith",
+          "amount": 2300,
+          "date": "2025-10-12"
+        }
+      ],
+      "clothesLog": [
+        {
+          "num": 2,
+          "desc": "2 shirts",
+          "date": "2025-10-12"
+        }
+      ],
+      "remaining": 3
+    }
+  ]
+}

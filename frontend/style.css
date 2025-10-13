@@ -1,0 +1,275 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', sans-serif;
+}
+body {
+    background: linear-gradient(to right, skyblue, #87ceeb);
+    overflow-x: hidden;
+  }
+  .card i {
+    font-size: 40px;
+    color: white;
+    margin-bottom: 15px;
+  }
+  .card {
+    border: none;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    border-radius: 20px;
+    transition: transform 0.3s ease;
+  }
+  .card:hover {
+    transform: translateY(-10px);
+  }
+
+  /* Navbar Styling */
+  .logo {
+    width: 100px;
+    height: auto;
+  }
+
+  .brand-title {
+    margin-left: 10px;
+    color: #023e8a;
+  }
+
+   .nav-link {
+    font-weight: 500;
+    color: #023e8a !important;
+  } 
+
+  /* Base style for nav links */
+.navbar-nav .nav-link {
+  color: 023e8a !important;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+/* Hover effect */
+.navbar-nav .nav-link:hover {
+  color: black !important;  /* Light cyan or change to anything you want */
+  text-decoration: underline;
+}
+
+/* Responsive fix for mobile */
+@media (max-width: 768px) {
+  .navbar-nav {
+     /* Optional: add background to nav on mobile */
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  .navbar-nav .nav-link {
+    color: navy !important;
+    padding: 10px;
+  }
+
+  .navbar-nav .nav-link:hover {
+    background-color: white;
+    border-radius: 5px;
+  }
+}
+
+  /* .nav-link:hover {
+    color: black !important;
+    background-color: white !important;
+    border-radius: 10px;
+  }
+
+  @media (max-width: 768px){
+    .nav-link:hover {
+      color: black !important;
+      background-color: white !important;
+      border-radius: 10px;
+      width: 100px;
+    }
+  } */
+
+  /* Hero Section */
+  .header-section {
+    min-height: 500px;
+    display: flex;
+    align-items: center;
+  }
+
+  .header-text h2,
+  .header-text h1 {
+    color: #023e8a;
+    font-weight: bold;
+  }
+
+  .header-text p {
+    color: #1e1e1e;
+    font-size: 1.1rem;
+    line-height: 1.7;
+  }
+
+  .header-img {
+    height: 700px;
+    object-fit: contain;
+    margin-top: -150px;
+    
+  }
+ 
+  
+  .hero{
+    margin-top: 100px;
+  }
+
+  @media (max-width: 768px) {
+    .header-img {
+      height: auto;
+      width: 100%;
+      margin-top: 0;
+    }
+  }
+  @media (max-width: 991px) {
+    .header-text h1 {
+      font-size: 1.7rem;
+    }
+    .header-text h2 {
+      font-size: 1.3rem;
+    }
+    .navbar-brand {
+      font-size: 1.25rem;
+    }
+    .container-fluid {
+      flex-wrap: wrap;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .header-section {
+      text-align: center;
+    }
+    .header-img {
+      margin: 0 auto;
+    }
+    .reason {
+      flex: 1 1 100%;
+      max-width: 100%;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .header-text h1 {
+      font-size: 1.4rem;
+    }
+    .header-text h2 {
+      font-size: 1.1rem;
+    }
+    .logo {
+      width: 45px;
+    }
+  }
+
+  /* Buttons */
+  .btn-custom {
+    background-color: transparent;
+    color: black ;
+    
+  }
+
+  .btn-custom:hover {
+    background-color: #0096c7;
+    color: #ffffff;
+  }
+
+  .brand-name {
+    font-size: 24px;
+    font-weight: bold;
+    color: #003049;
+  }
+  .card-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 30px;
+    margin: 60px auto;
+    padding: 0 20px;
+  }
+
+  .icon-style {
+    font-size: 2rem;
+    padding: 10px;
+    background-color: #0096c7;
+    color: white;
+    border-radius: 50%;
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+  .how-it-works {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 60px 40px;
+    gap: 30px;
+    margin-top: 60px;
+  }
+  .how-it-works img {
+    width: 45%;
+    height: auto;
+    object-fit: cover;
+    border-radius: 15px;
+  }
+  .how-it-works .text-box {
+    width: 50%;
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  }
+  .how-it-works .text-box h2 {
+    font-size: 28px;
+    color: #0077b6;
+    margin-bottom: 15px;
+  }
+  .how-it-works .text-box p {
+    font-size: 16px;
+    color: #333;
+    line-height: 1.6;
+  }
+  .promise, .why-choose-us, .app-section {
+    text-align: center;
+    padding: 60px 20px;
+    margin-top: 40px;
+  }
+  .promise h2, .why-choose-us h2, .app-section h2 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    color: #005f73;
+  }
+  .promise p, .app-section p {
+    max-width: 600px;
+    margin: auto;
+    font-size: 1.1rem;
+    color: #444;
+  }
+  .reasons {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    flex-wrap: wrap;
+  }
+  .reason {
+    width: 200px;
+  }
+  .reason i {
+    font-size: 2.5rem;
+    color: #0077b6;
+    margin-bottom: 10px;
+  }
+  .reason p {
+    font-size: 1.1rem;
+  }
+  .app-section {
+    background: #f0fbff;
+  }
+  .footer {
+    text-align: center;
+    padding: 20px;
+    background: #003049;
+    color: white;
+    margin-top: 60px;
+  }
