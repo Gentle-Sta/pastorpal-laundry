@@ -33,7 +33,7 @@ const savePaymentBtn = document.getElementById("savePaymentBtn");
 
 
 
-const API_URL = "http://localhost:3000/customers";
+const API_URL = "https://pastorpal-laundry-6.onrender.com"
 let currentCustomerId = null;         // for view/edit/collect
 let currentPaymentCustomerId = null;  // for add-payment modal
 
