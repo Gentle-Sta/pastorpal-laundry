@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev:api": "json-server --watch db.json --port 3000",
+    "start": "json-server --watch db.json --port 3000",
     "dev:static": "npx http-server -c-1 -p 5173 ."
   },
   "keywords": [],
