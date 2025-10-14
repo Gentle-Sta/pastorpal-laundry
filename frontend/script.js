@@ -181,7 +181,6 @@ const clothesHtml = clothes.length
       <p><strong>Pickup Date:</strong> ${c.pickupDate || 'N/A'}</p>
       <p><strong>Paid:</strong> ${c.paid ? 'Yes ✅' : 'No ❌'}</p>
       <hr>
-      <p><strong>Payments:</strong></p>
       <p><strong>Remaining Clothes:</strong> ${c.remaining ?? c.totalItems}</p>
     <hr>
     <p><strong>Clothes Log:</strong></p>
