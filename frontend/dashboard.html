@@ -55,6 +55,24 @@
       overflow-y: auto ;
     }
 
+     /* WhatsApp modal tweaks */
+#whatsappModal .modal-content {
+    border-radius: 12px;
+}
+
+#whatsappModal .modal-header {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+#whatsappModal .modal-footer {
+    border-top: 1px solid #dee2e6;
+}
+
+#whatsappModal textarea {
+    resize: none;
+}
+
 
 
   </style>
@@ -247,36 +265,35 @@
 
 <!-- WhatsApp Modal -->
 <div class="modal fade" id="whatsappModal" tabindex="-1" aria-labelledby="whatsappModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="whatsappModalLabel">Send WhatsApp Message</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-success shadow-lg">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="whatsappCustomerName">Send message</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <p id="whatsappCustomerName"></p>
-        <div class="mb-3">
-          <label class="form-label">Message Type</label>
-          <select class="form-select" id="whatsappMessageType">
-            <option value="1">Clothes Ready</option>
-            <option value="2">Clothes Collected</option>
-            <option value="3">Custom Message</option>
-            <option value="4">Overdue Reminder</option>
-          </select>
-        </div>
-        <div class="mb-3" id="customMessageDiv" style="display:none;">
-          <label for="customMessage" class="form-label">Custom Message</label>
-          <textarea class="form-control" id="customMessage" rows="3"></textarea>
+        <label for="whatsappMessageType" class="form-label">Select message type:</label>
+        <select id="whatsappMessageType" class="form-select mb-3">
+          <option value="1">Clothes Ready</option>
+          <option value="2">Clothes Collected</option>
+          <option value="3">Custom Message</option>
+          <option value="4">Overdue Reminder</option>
+        </select>
+
+        <div id="customMessageDiv" style="display:none;">
+          <label for="customMessage" class="form-label">Enter your custom message:</label>
+          <textarea id="customMessage" class="form-control" rows="3" placeholder="Type your message here..."></textarea>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-success" id="sendWhatsappBtn">Send</button>
+        <button type="button" id="sendWhatsappBtn" class="btn btn-success">
+           Send
+        </button>
       </div>
     </div>
   </div>
 </div>
-
 
 
 
