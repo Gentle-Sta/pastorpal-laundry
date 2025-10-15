@@ -1,3 +1,7 @@
+const SUPABASE_URL = "https://lbynmptomywbkpukjxex.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxieW5tcHRvbXl3YmtwdWtqeGV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0MDg2ODUsImV4cCI6MjA3NTk4NDY4NX0.-O7JU8hjLYZSwTW7e9vfZz6n1klpf2pEPWYBgj3i5ZI"
+
+const supabase = window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // dom refs
 const tableBody = document.querySelector("#customersTable tbody");
@@ -22,27 +26,19 @@ const paymentModalEl = document.getElementById("paymentModal");
 const paymentModal = new bootstrap.Modal(paymentModalEl);
 const savePaymentBtn = document.getElementById("savePaymentBtn");
 
+// WHATSAPP MODAL ELEMENTS
+const whatsappModalEl = document.getElementById("whatsappModal");
+const whatsappModal = new bootstrap.Modal(whatsappModalEl);
+const whatsappCustomerName = document.getElementById("whatsappCustomerName");
+const whatsappMessageType = document.getElementById("whatsappMessageType");
+const customMessageDiv = document.getElementById("customMessageDiv");
+const customMessageInput = document.getElementById("customMessage");
+const sendWhatsappBtn = document.getElementById("sendWhatsappBtn");
 
-
-
-
-
-
-
-
-
-
-
-const API_URL = "https://pastorpal-laundry-6.onrender.com/customers"
 let currentCustomerId = null;         // for view/edit/collect
 let currentPaymentCustomerId = null;  // for add-payment modal
-
-
-
-
-
-
-
+let currentWhatsappPhone = null;      // for WhatsApp modal
+let currentWhatsappName = null;
 
 // helper to escape values used in attributes
 function escapeHtml(str) {
@@ -50,49 +46,32 @@ function escapeHtml(str) {
   return String(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // LOAD and render rows
 async function loadCustomers() {
   try {
-    const res = await fetch(API_URL);
-    let customers = await res.json();
+    const {data: customers, error} = await supabase
+      .from('customers')
+      .select('*')
 
-    const filter = (searchInput.value || "").toLowerCase().trim();
+    if (error) throw error;
+
+    const filter = searchInput.value.trim().toLowerCase();
+    let filtered = customers;
+
     if (filter) {
-      customers = customers.filter(c =>
-        (c.name || "").toLowerCase().includes(filter) ||
-        (c.phone || "").includes(filter) ||
-        (c.description || "").toLowerCase().includes(filter)
+      filtered = customers.filter(
+        (c) =>
+          c.name && c.name.toLowerCase().includes(filter) ||
+          c.phone && c.phone.toLowerCase().includes(filter) ||
+          c.description && c.description.toLowerCase().includes(filter)
       );
     }
 
     tableBody.innerHTML = "";
-    customers.forEach(c => {
+    filtered.forEach(c => {
       const dateStamp = c.date || (new Date()).toLocaleString();
 
-      const today =new Date();
+      const today = new Date();
       if(c.agreedDate){
         const agreed = new Date(c.agreedDate);
         if(c.status === "Pending" && agreed < today){
@@ -127,44 +106,27 @@ async function loadCustomers() {
       }
     });
   } catch (err) {
-    console.error("Failed to load customers:", err);
+    console.error("Error loading customers", err.message);
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//    VIEW DETAILS
-
-// show details in modal, include payments and paid status
+// VIEW DETAILS
 async function viewDetails(id) {
   try {
-    const res = await fetch(`${API_URL}/${id}`);
-    if (!res.ok) throw new Error("Failed to fetch customer");
-    const c = await res.json();
+    const {data, error} = await supabase
+    .from("customers")
+    .select("*")
+    .eq("id", id)
+    .single();
 
-    // payments list HTML
+    if (error) throw error;
+    const c = data;
     const payments = (c.payments || []);
     const paymentsHtml = payments.length ? payments.map(p => `<li>${escapeHtml(p.method)} — ₦${p.amount} (${escapeHtml(p.date)})</li>`).join('') : '<li>No payments yet</li>';
     const totalPaid = (c.payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
     const balance = Math.max((Number(c.totalAmount) || 0) - totalPaid);
     const clothes = (c.clothesLog || []);
-const clothesHtml = clothes.length
-? clothes.map(cl => `<li>${cl.num} — ${escapeHtml(cl.desc)} (${cl.date})</li>`).join('')
-: '<li>No clothes collected yet</li>';
-    
+    const clothesHtml = clothes.length ? clothes.map(cl => `<li>${cl.num} — ${escapeHtml(cl.desc)} (${cl.date})</li>`).join('') : '<li>No clothes collected yet</li>';
 
     modalBody.innerHTML = `
       <p><strong>Name:</strong> ${escapeHtml(c.name)}</p>
@@ -182,166 +144,90 @@ const clothesHtml = clothes.length
       <p><strong>Paid:</strong> ${c.paid ? 'Yes ✅' : 'No ❌'}</p>
       <hr>
       <p><strong>Remaining Clothes:</strong> ${c.remaining ?? c.totalItems}</p>
-    <hr>
-    <p><strong>Clothes Log:</strong></p>
-  <ul>${clothesHtml}</ul>
-    <hr>
-  <p><strong>Payments:</strong></p>
+      <hr>
+      <p><strong>Clothes Log:</strong></p>
+      <ul>${clothesHtml}</ul>
+      <hr>
+      <p><strong>Payments:</strong></p>
       <ul>${paymentsHtml}</ul>
     `;
     modal.show();
   } catch (err) {
-    console.error("viewDetails error:", err);
-    alert("Could not load details (see console).");
+    console.error("Error viewing customers", err.message);
+    alert("Failed to load customer details (see console).");
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // COLLECT MODAL
-// open collect modal for a customer (does NOT set paid=true)
 function openCollectModal(id) {
   currentCustomerId = id;
   pickupDateInput.value = new Date().toISOString().split("T")[0];
   collectModal.show();
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// MARK collected (no auto-paid)
-
+// MARK collected
 markPaidBtn.addEventListener("click", async () => {
   if (!currentCustomerId) return;
   const date = pickupDateInput.value;
-  await fetch(`${API_URL}/${currentCustomerId}`, {
-    method: "PATCH",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ status: "Collected", pickupDate: date })
-  });
+  const {error} = await supabase
+  .from('customers')
+  .update({paid:true,pickupDate:date})
+  .eq('id', currentCustomerId);
+
+  if(error){
+    console.error('Error updating customer:', error.message);
+    alert('Failed to update customer');
+    return
+  }
   collectModal.hide();
   loadCustomers();
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 //EDIT CUSTOMER
-// edit quick prompt
 async function editCustomer(id) {
   try {
-    const res = await fetch(`${API_URL}/${id}`);
-    if (!res.ok) throw new Error("Failed to fetch");
-    const customer = await res.json();
+    const {data:customer, error:fetchError} = await supabase
+    .from("customers")
+    .select("*")
+    .eq("id", id)
+    .single();
 
-    const newDescription = prompt("Update description:", customer.description);
+    if (fetchError) throw new Error("Failed to fetch customer");
+
+    const newDescription = prompt("Update description:",customer.description);
     if (newDescription === null) return;
-    const newTotalItems = Number(prompt("Update Total Items:", customer.totalItems));
-    if (isNaN(newTotalItems)) return alert("Invalid number for items.");
-    const newTotalAmount = Number(prompt("Update Total Amount:", customer.totalAmount));
-    if (isNaN(newTotalAmount)) return alert("Invalid number for amount.");
 
-    await fetch(`${API_URL}/${id}`, {
-      method: "PATCH",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ description: newDescription, totalItems: newTotalItems, totalAmount: newTotalAmount })
-    });
+    const newTotalItems = Number(prompt("Update Total Items:", customer.totalItems));
+    if (isNaN(newTotalItems)) {
+      alert("Invalid number for Total Items.");
+      return;
+    }
+
+    const newTotalAmount = Number(prompt("Update Total Amount:", customer.totalAmount));
+    if (isNaN(newTotalAmount)) {
+      alert("Invalid number for Total Amount.");
+      return;
+    }
+
+    const {error:updateError} = await supabase
+    .from("customers")
+    .update({
+      description:newDescription,
+      totalItems:newTotalItems,
+      totalAmount:newTotalAmount})
+    .eq("id", id);
+
+    if (updateError) throw updateError;
+
+    alert("Customer updated SUCCESSFULLY!.");
     loadCustomers();
-  } catch (err) {
-    console.error("editCustomer error:", err);
-    alert("Could not edit (see console).");
+  }catch(err){
+    console.error("Edit customer error:", err);
+    alert("Could not edit customer (see console).");
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 //OPEN PAYMENT MODAL
-
-// open payment modal for a specific customer
 function openPaymentModal(id) {
   currentPaymentCustomerId = id;
   document.getElementById("paymentMethod").value = "";
@@ -350,114 +236,50 @@ function openPaymentModal(id) {
   paymentModal.show();
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 //SAVE CLOTHES
-
 saveClothesBtn.addEventListener("click", async () => {
-if (!currentClothesCustomerId) return;
-const num = Number(collectedItemsInput.value);
-const desc = collectedDescInput.value.trim();
-const date = collectedDateInput.value || new Date().toISOString().split("T")[0];
+  if (!currentClothesCustomerId) return;
+  const num = Number(collectedItemsInput.value);
+  const desc = collectedDescInput.value.trim();
+  const date = collectedDateInput.value || new Date().toISOString().split("T")[0];
 
-if (!num || isNaN(num) || num <= 0) {
-alert("Enter valid number of clothes.");
-return;
-}
+  if (!num || isNaN(num) || num <= 0) {
+    alert("Enter valid number of clothes.");
+    return;
+  }
 
-try {
-const res = await fetch(`${API_URL}/${currentClothesCustomerId}`);
-const customer = await res.json();
+  try {
+    const {data:customer, error:fetchError} = await supabase
+    .from("customers")
+    .select("*")
+    .eq("id", currentClothesCustomerId)
+    .single();
 
-customer.clothesLog = customer.clothesLog || [];
-customer.clothesLog.push({ num, desc, date });
+    if (fetchError) throw fetchError;
 
-// update remaining clothes
-const totalCollected = customer.clothesLog.reduce((s, l) => s + l.num, 0);
-const remaining = (customer.totalItems || 0) - totalCollected;
+    customer.clothesLog = customer.clothesLog || [];
+    customer.clothesLog.push({ num, desc, date });
 
-await fetch(`${API_URL}/${currentClothesCustomerId}`, {
-  method: "PATCH",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ clothesLog: customer.clothesLog, remaining })
+    const totalCollected = customer.clothesLog.reduce((s, l) => s + l.num, 0);
+    const remaining = (customer.totalItems || 0) - totalCollected;
+
+    const {error:updateError} = await supabase
+    .from("customers")
+    .update({ clothesLog: customer.clothesLog, remaining })
+    .eq("id", currentClothesCustomerId);
+
+    if (updateError) throw updateError;
+
+    clothesModal.hide();
+    loadCustomers();
+    alert("Clothes log saved.");
+  } catch (err) {
+    console.error("Save clothes error:", err);
+    alert("Could not save clothes log. See console for details.");
+  }
 });
 
-clothesModal.hide();
-loadCustomers();
-alert("Clothes log saved.");
-} catch (err) {
-console.error("Save clothes error:", err);
-alert("Could not save clothes log.");
-}
-});
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//   SAVE PAYMENT
-// save payment and update customer's payments array + paid flag if total covered
+//SAVE PAYMENT
 savePaymentBtn.addEventListener("click", async () => {
   if (!currentPaymentCustomerId) {
     alert("No customer selected for payment.");
@@ -473,79 +295,50 @@ savePaymentBtn.addEventListener("click", async () => {
   }
 
   try {
-    // fetch customer
-    const res = await fetch(`${API_URL}/${currentPaymentCustomerId}`);
-    if (!res.ok) throw new Error("Failed to load customer");
-    const customer = await res.json();
+    const {data:customer, error:fetchError} = await supabase
+    .from("customers")
+    .select("*")
+    .eq("id", currentPaymentCustomerId)
+    .single();
 
-    // add payment
+    if (fetchError) throw fetchError;
+    if (!customer) throw new Error("Customer not found");
+
     customer.payments = customer.payments || [];
     customer.payments.push({ method, amount, date });
 
-    // compute total paid so far
     const totalPaid = (customer.payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
     const paidFlag = (customer.totalAmount && !isNaN(customer.totalAmount)) ? (totalPaid >= Number(customer.totalAmount)) : totalPaid > 0;
 
-    // patch back payments and paid flag
-    const patchRes = await fetch(`${API_URL}/${currentPaymentCustomerId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ payments: customer.payments, paid: paidFlag })
-    });
+    const {error:updateError} = await supabase
+    .from("customers")
+    .update({ payments: customer.payments, paid: paidFlag })
+    .eq("id", currentPaymentCustomerId);
 
-    if (!patchRes.ok) throw new Error("Failed to save payment");
+    if (updateError) throw updateError;
 
     paymentModal.hide();
     loadCustomers();
-    alert("Payment saved.");
+    alert("Payment saved SUCCESSFULLY.");
   } catch (err) {
-    console.error("savePayment error:", err);
+    console.error("savePayment error:", err.message);
     alert("Could not save payment (see console).");
   }
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// DELETE PROMPT/CUSTOMER
-
-// delete with passcode prompt (delegated handler will call this)
+// DELETE CUSTOMER
 async function deleteCustomer(id) {
-  const passcode = "1234"; // your hardcoded passcode
+  const passcode = "1234"; 
   const input = prompt("Enter passcode to delete this customer:");
   if (input === passcode) {
     try {
-      const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Delete failed");
+      const {error} = await supabase
+      .from('customers')
+      .delete()
+      .eq('id', id);
+
+      if (error) throw error;
+      
       alert("✅ Customer deleted successfully!");
       loadCustomers();
     } catch (err) {
@@ -557,45 +350,7 @@ async function deleteCustomer(id) {
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // ADD NEW CUSTOMER
-
-// Add new customer
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const name = document.getElementById("name").value.trim();
@@ -606,88 +361,38 @@ form.addEventListener("submit", async (e) => {
   const instruction = document.getElementById("instruction").value;
   const agreedDate = document.getElementById("agreedDate").value;
 
-const newCustomer = {
-id: Date.now().toString(),
-date: new Date().toLocaleString(),
-name, phone, description,
-totalItems, totalAmount,
-instruction,
-agreedDate,        // ✅ Save the agreed date
-status: "Pending",
-paid: false,
-overdue: false,    // ✅ track overdue
-payments: []
-};
+  const newCustomer = {
+    id: Date.now().toString(),
+    date: new Date().toLocaleString(),
+    name, phone, description,
+    totalItems, totalAmount,
+    instruction,
+    agreedDate,
+    status: "Pending",
+    paid: false,
+    overdue: false,
+    payments: []
+  };
 
   try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newCustomer)
-    });
-    if (!res.ok) throw new Error("Create failed");
+    const {data, error} = await supabase
+    .from('customers')
+    .insert([newCustomer]);
+
+    if (error) throw error;
+
     form.reset();
-    loadCustomers();
-  } catch (err) {
-    console.error("Add customer error:", err);
-    alert("Could not add customer (see console).");
+    alert("Customer added SUCCESSFULLY!")
+  }catch(err){
+    console.error("Error adding customer", err.message);
+    alert("Error adding customer");
   }
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// delegated click handler for the table (view / edit / delete / whatsapp / add-payment / collect)
+// TABLE CLICK HANDLER
 tableBody.addEventListener("click", function (e) {
   const btn = e.target.closest("button");
   if (!btn) return;
-  // dataset.id holds the id set when rendering
   const id = btn.dataset.id;
 
   if (btn.classList.contains("view-btn")) {
@@ -719,92 +424,54 @@ tableBody.addEventListener("click", function (e) {
     return;
   }
   if (btn.classList.contains("btn-whatsapp")) {
-    const phone = btn.dataset.phone;
-    const name = btn.dataset.name;
-    const choice = prompt("Type:\n1 - Clothes Ready\n2 - Clothes Collected\n3 - Custom Message");
-    let message = "";
-    if (choice === "1") message = `Hello ${name}, your clothes are ready for pickup. Thank you for choosing PASTOR PAL Laundry!`;
-    else if (choice === "2") message = `Hello ${name}, your clothes have been marked as collected. Thank you!`;
-    else if (choice === "3") message = prompt("Enter your custom message:") || "";
-    if(choice === "4")message=`Hello ${name}, this is a reminder that your laundry is ready and overdue for pickup. Kindly Collect it Soon.`
-    else { alert("Cancelled."); return; }
-    sendWhatsApp(phone, message);
+    currentWhatsappPhone = btn.dataset.phone;
+    currentWhatsappName = btn.dataset.name;
+
+    whatsappCustomerName.textContent = `Send message to ${currentWhatsappName}`;
+    whatsappMessageType.value = "1";
+    customMessageDiv.style.display = "none";
+    customMessageInput.value = "";
+
+    whatsappModal.show();
     return;
   }
-  
 });
 
+// WHATSAPP MODAL LOGIC
+whatsappMessageType.addEventListener("change", () => {
+    if (whatsappMessageType.value === "3") {
+        customMessageDiv.style.display = "block";
+    } else {
+        customMessageDiv.style.display = "none";
+        customMessageInput.value = "";
+    }
+});
 
+sendWhatsappBtn.addEventListener("click", () => {
+    if (!currentWhatsappPhone || !currentWhatsappName) return;
 
+    let message = "";
+    const type = whatsappMessageType.value;
 
+    if (type === "1") message = `Hello ${currentWhatsappName}, your clothes are ready for pickup. Thank you for choosing PASTOR PAL Laundry!`;
+    else if (type === "2") message = `Hello ${currentWhatsappName}, your clothes have been marked as collected. Thank you!`;
+    else if (type === "3") {
+        message = customMessageInput.value.trim();
+        if (!message) {
+            alert("Enter a custom message.");
+            return;
+        }
+    }
+    else if (type === "4") message = `Hello ${currentWhatsappName}, this is a reminder that your laundry is ready and overdue for pickup. Kindly collect it soon.`;
 
+    // open WhatsApp Web
+    const url = `https://wa.me/${currentWhatsappPhone.replace(/\D/g,'')}?text=${encodeURIComponent(message)}`;
+    window.open(url, "_blank");
+    whatsappModal.hide();
+});
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//WHATSAPP
-// whatsapp opener
-function sendWhatsApp(rawPhone, message) {
-  let phone = (rawPhone || "").replace(/\s|[\(\)\-\.]/g, "");
-  phone = phone.replace(/^\+/, "");
-  if (/^0\d{9,}$/.test(phone)) phone = "234" + phone.slice(1);
-  if (!/^\d{7,15}$/.test(phone)) { alert("Invalid phone format. Use international format like 2348012345678."); return; }
-  const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-  window.open(url, "_blank");
-}
-
-
-
-
-
-
-
-
-// search live
+// SEARCH INPUT
 searchInput.addEventListener("input", loadCustomers);
 
-
-
-
-
-// initial
+// INITIAL LOAD
 loadCustomers();
-
-
-
-
-
-
-
-// expose (useful if something else calls them)
-window.openCollectModal = openCollectModal;
-window.viewDetails = viewDetails;
-window.editCustomer = editCustomer;
