@@ -1,7 +1,3 @@
-const SUPABASE_URL = "https://lbynmptomywbkpukjxex.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxieW5tcHRvbXl3YmtwdWtqeGV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0MDg2ODUsImV4cCI6MjA3NTk4NDY4NX0.-O7JU8hjLYZSwTW7e9vfZz6n1klpf2pEPWYBgj3i5ZI"
-
-const supabase = window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // dom refs
 const tableBody = document.querySelector("#customersTable tbody");
@@ -35,10 +31,22 @@ const customMessageDiv = document.getElementById("customMessageDiv");
 const customMessageInput = document.getElementById("customMessage");
 const sendWhatsappBtn = document.getElementById("sendWhatsappBtn");
 
-let currentCustomerId = null;         // for view/edit/collect
-let currentPaymentCustomerId = null;  // for add-payment modal
-let currentWhatsappPhone = null;      // for WhatsApp modal
+let currentCustomerId = null;
+let currentPaymentCustomerId = null;
+let currentWhatsappPhone = null;
 let currentWhatsappName = null;
+
+// ✅ Utility: safely parse JSON or return fallback
+function safeParseJSON(value, fallback = []) {
+  if (Array.isArray(value)) return value;
+  if (!value) return fallback;
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 // helper to escape values used in attributes
 function escapeHtml(str) {
@@ -47,38 +55,33 @@ function escapeHtml(str) {
 }
 
 // LOAD and render rows
+// LOAD CUSTOMERS
 async function loadCustomers() {
   try {
-    const {data: customers, error} = await supabase
-      .from('customers')
-      .select('*')
+    const { data: customers, error } = await supabase
+    .from('customers')
+    .select('*');
 
     if (error) throw error;
 
     const filter = searchInput.value.trim().toLowerCase();
     let filtered = customers;
-
     if (filter) {
       filtered = customers.filter(
-        (c) =>
-          c.name && c.name.toLowerCase().includes(filter) ||
-          c.phone && c.phone.toLowerCase().includes(filter) ||
-          c.description && c.description.toLowerCase().includes(filter)
+        c =>
+          (c.name && c.name.toLowerCase().includes(filter)) ||
+          (c.phone && c.phone.toLowerCase().includes(filter)) ||
+          (c.description && c.description.toLowerCase().includes(filter))
       );
     }
 
     tableBody.innerHTML = "";
     filtered.forEach(c => {
-      const dateStamp = c.date || (new Date()).toLocaleString();
-
+      const dateStamp = c.date || new Date().toLocaleString();
       const today = new Date();
-      if(c.agreedDate){
+      if (c.agreedDate) {
         const agreed = new Date(c.agreedDate);
-        if(c.status === "Pending" && agreed < today){
-          c.overdue=true;
-        }else{
-          c.overdue=false;
-        }
+        c.overdue = c.status === "Pending" && agreed < today;
       }
 
       const tr = document.createElement("tr");
@@ -89,20 +92,34 @@ async function loadCustomers() {
         <td>${escapeHtml(c.description)}</td>
         <td>${c.totalItems ?? ''}</td>
         <td>${c.totalAmount ?? ''}</td>
-        <td><span class="badge-status $ {c.status==='Collected'?'bg-success':c.overdue?'bg-danger':'bg-warning'}">${c.overdue && c.status==='Pending'?'Overdue':escapeHtml(c.status)}</span></td>
         <td>
-           ${c.status==='Pending' ? `<button class="btn btn-sm btn-success mb-1" data-action="collect" data-id="${c.id}">Mark Collected</button>` : ''}
+          <span class="badge-status" style="
+  background-color: ${c.status === 'Collected' ? '#28a745' : c.overdue ? '#dc3545' : '#ffc107'};
+  color: white;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-block;
+  min-width: 85px;
+  text-align: center;
+">
+  ${c.overdue && c.status === 'Pending' ? 'Overdue' : escapeHtml(c.status)}
+</span>
+
+        </td>
+        <td>
+          ${c.status === 'Pending' ? `<button class="btn btn-sm btn-success mb-1" data-action="collect" data-id="${c.id}">Mark Collected</button>` : ''}
           <button class="btn btn-sm btn-info mb-1 view-btn" data-id="${c.id}">View</button>
           <button class="btn btn-sm btn-warning mb-1 edit-btn" data-id="${c.id}">Edit</button>
           <button class="btn btn-sm btn-danger mb-1 delete-btn" data-id="${c.id}">Delete</button>
           <button class="btn btn-sm btn-primary mb-1 add-payment-btn" data-id="${c.id}">Add Payment</button>
           <button class="btn btn-sm btn-success mb-1 btn-whatsapp" data-phone="${escapeHtml(c.phone)}" data-name="${escapeHtml(c.name)}">WhatsApp</button>
           <button class="btn btn-sm btn-dark mb-1 clothes-btn" data-id="${c.id}">Clothes</button>
-        </td>
-      `;
+        </td>`;
       tableBody.appendChild(tr);
-      if(c.overdue && c.status==="Pending"){
-        tr.style.backgroundColor="#ffe5e5"; // light red for overdue
+      if (c.overdue && c.status === "Pending") {
+        tr.style.backgroundColor = "#ffe5e5";
       }
     });
   } catch (err) {
@@ -111,39 +128,45 @@ async function loadCustomers() {
 }
 
 // VIEW DETAILS
+// ✅ FIXED viewDetails
 async function viewDetails(id) {
   try {
-    const {data, error} = await supabase
-    .from("customers")
-    .select("*")
-    .eq("id", id)
-    .single();
-
+    const { data, error } = await supabase.from("customers").select("*").eq("id", id).single();
     if (error) throw error;
     const c = data;
-    const payments = (c.payments || []);
-    const paymentsHtml = payments.length ? payments.map(p => `<li>${escapeHtml(p.method)} — ₦${p.amount} (${escapeHtml(p.date)})</li>`).join('') : '<li>No payments yet</li>';
-    const totalPaid = (c.payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
-    const balance = Math.max((Number(c.totalAmount) || 0) - totalPaid);
-    const clothes = (c.clothesLog || []);
-    const clothesHtml = clothes.length ? clothes.map(cl => `<li>${cl.num} — ${escapeHtml(cl.desc)} (${cl.date})</li>`).join('') : '<li>No clothes collected yet</li>';
+
+    const payments = safeParseJSON(c.payments, []);
+    const clothes = safeParseJSON(c.clothesLog, []);
+
+    const paymentsHtml = payments.length
+      ? payments.map(p => `<li>${escapeHtml(p.method)} — ₦${p.amount} (${escapeHtml(p.date)})</li>`).join('')
+      : '<li>No payments yet</li>';
+
+    const totalPaid = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    const balance = Math.max((Number(c.totalAmount) || 0) - totalPaid, 0);
+    const clothesHtml = clothes.length
+      ? clothes.map(cl => `<li>${cl.num} — ${escapeHtml(cl.desc)} (${cl.date})</li>`).join('')
+      : '<li>No clothes collected yet</li>';
+
+    const overdue = c.overdue ? "Yes" : "No";
+    const paid = c.paid ? "Yes" : "No";
+    const remaining = c.remaining ?? 0;
 
     modalBody.innerHTML = `
       <p><strong>Name:</strong> ${escapeHtml(c.name)}</p>
       <p><strong>Phone:</strong> ${escapeHtml(c.phone)}</p>
       <p><strong>Description:</strong> ${escapeHtml(c.description)}</p>
-      <p><strong>No. of Cloths:</strong> ${c.totalItems ?? ''}</p>
+      <p><strong>Special Instruction:</strong> ${escapeHtml(c.instruction || "None")}</p>
+      <p><strong>No. of Clothes:</strong> ${c.totalItems ?? ''}</p>
+      <p><strong>Remaining Clothes:</strong> ${remaining}</p>
       <p><strong>Total Amount:</strong> ₦${c.totalAmount ?? ''}</p>
       <p><strong>Total Paid:</strong> ₦${totalPaid}</p>
       <p><strong>Balance:</strong> ₦${balance}</p>
+      <p><strong>Paid:</strong> ${paid}</p>
       <p><strong>Status:</strong> ${escapeHtml(c.status)}</p>
-      <p><strong>Agreed Date:</strong> ${c.agreedDate || 'N/A'}</p>
-      <p><strong>Overdue:</strong> ${c.overdue ? 'Yes ❌ (Past Due)' : 'No ✅'}</p>
-      <p><strong>Special Instruction:</strong> ${escapeHtml(c.instruction || 'N/A')}</p>
-      <p><strong>Pickup Date:</strong> ${c.pickupDate || 'N/A'}</p>
-      <p><strong>Paid:</strong> ${c.paid ? 'Yes ✅' : 'No ❌'}</p>
-      <hr>
-      <p><strong>Remaining Clothes:</strong> ${c.remaining ?? c.totalItems}</p>
+      <p><strong>Agreed Date:</strong> ${escapeHtml(c.agreedDate || "—")}</p>
+      <p><strong>Pickup Date:</strong> ${escapeHtml(c.pickupDate || "—")}</p>
+      <p><strong>Overdue:</strong> ${overdue}</p>
       <hr>
       <p><strong>Clothes Log:</strong></p>
       <ul>${clothesHtml}</ul>
@@ -153,7 +176,7 @@ async function viewDetails(id) {
     `;
     modal.show();
   } catch (err) {
-    console.error("Error viewing customers", err.message);
+    console.error("Error viewing customer", err.message);
     alert("Failed to load customer details (see console).");
   }
 }
@@ -165,22 +188,57 @@ function openCollectModal(id) {
   collectModal.show();
 }
 
-// MARK collected
+// HANDLE MARK COLLECTED CONFIRMATION
+// HANDLE MARK COLLECTED CONFIRMATION
 markPaidBtn.addEventListener("click", async () => {
-  if (!currentCustomerId) return;
-  const date = pickupDateInput.value;
-  const {error} = await supabase
-  .from('customers')
-  .update({paid:true,pickupDate:date})
-  .eq('id', currentCustomerId);
-
-  if(error){
-    console.error('Error updating customer:', error.message);
-    alert('Failed to update customer');
-    return
+  if (!currentCustomerId) {
+    alert("No customer selected.");
+    return;
   }
-  collectModal.hide();
-  loadCustomers();
+
+  const pickupDate = pickupDateInput.value;
+  if (!pickupDate) {
+    alert("Please select a pickup date.");
+    return;
+  }
+
+  try {
+    // Update the selected customer
+    const { error } = await supabase
+      .from("customers")
+      .update({
+        status: "Collected",
+        pickupDate: pickupDate,
+        remaining: 0 // ✅ set remaining clothes to 0
+      })
+      .eq("id", currentCustomerId);
+
+    if (error) throw error;
+
+    alert("✅ Customer marked as collected successfully!");
+    collectModal.hide();
+    loadCustomers(); // refresh table so view modal updates
+  } catch (err) {
+    console.error("Error marking collected:", err.message);
+    alert("❌ Failed to mark as collected. See console for details.");
+  }
+});
+
+
+// MARK collected
+// ✅ Fix: Mark as collected button
+tableBody.addEventListener("click", async (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+
+  const id = btn.dataset.id;
+  const action = btn.dataset.action;
+
+  if (btn.classList.contains("view-btn")) {
+    viewDetails(id);
+  }
+
+  
 });
 
 //EDIT CUSTOMER
@@ -249,35 +307,37 @@ saveClothesBtn.addEventListener("click", async () => {
   }
 
   try {
-    const {data:customer, error:fetchError} = await supabase
-    .from("customers")
-    .select("*")
-    .eq("id", currentClothesCustomerId)
-    .single();
+    const { data: customer, error: fetchError } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("id", currentClothesCustomerId)
+      .single();
 
     if (fetchError) throw fetchError;
 
-    customer.clothesLog = customer.clothesLog || [];
-    customer.clothesLog.push({ num, desc, date });
+    // ✅ Parse safely in case Supabase returns text
+    let clothesLog = safeParseJSON(customer.clothesLog, []);
+    clothesLog.push({ num, desc, date });
 
-    const totalCollected = customer.clothesLog.reduce((s, l) => s + l.num, 0);
+    const totalCollected = clothesLog.reduce((s, l) => s + (Number(l.num) || 0), 0);
     const remaining = (customer.totalItems || 0) - totalCollected;
 
-    const {error:updateError} = await supabase
-    .from("customers")
-    .update({ clothesLog: customer.clothesLog, remaining })
-    .eq("id", currentClothesCustomerId);
+    const { error: updateError } = await supabase
+      .from("customers")
+      .update({ clothesLog, remaining })
+      .eq("id", currentClothesCustomerId);
 
     if (updateError) throw updateError;
 
     clothesModal.hide();
     loadCustomers();
-    alert("Clothes log saved.");
+    alert("✅ Clothes log saved successfully.");
   } catch (err) {
     console.error("Save clothes error:", err);
     alert("Could not save clothes log. See console for details.");
   }
 });
+
 
 //SAVE PAYMENT
 savePaymentBtn.addEventListener("click", async () => {
@@ -362,32 +422,38 @@ form.addEventListener("submit", async (e) => {
   const agreedDate = document.getElementById("agreedDate").value;
 
   const newCustomer = {
-    id: Date.now().toString(),
-    date: new Date().toLocaleString(),
-    name, phone, description,
-    totalItems, totalAmount,
-    instruction,
-    agreedDate,
-    status: "Pending",
-    paid: false,
-    overdue: false,
-    payments: []
-  };
+  date: new Date().toISOString(),
+  name,
+  phone,
+  description,
+  totalItems,
+  totalAmount,
+  instruction,
+  agreedDate,
+  status: "Pending",
+  paid: false,
+  overdue: false,
+  payments: [],
+  clothesLog: [],  // helpful for later
+  remaining: totalItems,  // ✅ Set remaining equal to total clothes at start
+};
 
   try {
-    const {data, error} = await supabase
-    .from('customers')
-    .insert([newCustomer]);
+    const { data, error } = await supabase
+      .from('customers')
+      .insert([newCustomer]);
 
     if (error) throw error;
 
     form.reset();
-    alert("Customer added SUCCESSFULLY!")
-  }catch(err){
+    alert("Customer added SUCCESSFULLY!");
+    loadCustomers(); // optional: reload table immediately
+  } catch (err) {
     console.error("Error adding customer", err.message);
     alert("Error adding customer");
   }
 });
+
 
 // TABLE CLICK HANDLER
 tableBody.addEventListener("click", function (e) {
@@ -475,3 +541,6 @@ searchInput.addEventListener("input", loadCustomers);
 
 // INITIAL LOAD
 loadCustomers();
+
+
+
