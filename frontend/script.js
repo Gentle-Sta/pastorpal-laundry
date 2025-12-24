@@ -315,6 +315,7 @@ tableBody.addEventListener("click", async (e) => {
   
 });
 
+
 multiImageInput.addEventListener("change", async () => {
   const files = Array.from(multiImageInput.files);
   if (!files.length) return;
@@ -324,50 +325,105 @@ multiImageInput.addEventListener("change", async () => {
     return;
   }
 
-  const uploadedUrls = [];
+  try {
+    // Upload all images in parallel
+    const uploadPromises = files.map(async (file) => {
+      const filePath = `public/${Date.now()}_${file.name}`;
+      const { data, error } = await supabase.storage
+        .from("customer-images")
+        .upload(filePath, file);
 
-  for (const file of files) {
-    const filePath = `public/${Date.now()}_${file.name}`;
+      if (error) throw error;
 
-    const { data, error } = await supabase.storage
-      .from("customer-images")
-      .upload(filePath, file);
+      const { data: publicData, error: urlError } = supabase
+        .storage
+        .from("customer-images")
+        .getPublicUrl(data.path);
 
-    if (error) {
-      alert("Upload failed");
-      return;
-    }
+      if (urlError) throw urlError;
 
-    const { data: publicData, error: urlError } = supabase
-  .storage
-  .from("customer-images")
-  .getPublicUrl(data.path);
+      return publicData.publicUrl;
+    });
 
-if (urlError) {
-  console.error("Failed to get public URL:", urlError.message);
-} else {
-  uploadedUrls.push(publicData.publicUrl);
-}
+    const uploadedUrls = await Promise.all(uploadPromises); // Wait for all uploads
 
+    // Save to DB
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("image_urls")
+      .eq("id", currentImageCustomerId)
+      .single();
+
+    const existing = safeParseJSON(customer.image_urls, []);
+    const updated = [...existing, ...uploadedUrls];
+
+    await supabase
+      .from("customers")
+      .update({ image_urls: updated })
+      .eq("id", currentImageCustomerId);
+
+    openImagesModal(currentImageCustomerId);
+  } catch (err) {
+    console.error("Image upload failed:", err);
+    alert("❌ Failed to upload images. See console.");
   }
-
-  // save to DB
-  const { data: customer } = await supabase
-    .from("customers")
-    .select("image_urls")
-    .eq("id", currentImageCustomerId)
-    .single();
-
-  const existing = safeParseJSON(customer.image_urls, []);
-  const updated = [...existing, ...uploadedUrls];
-
-  await supabase
-    .from("customers")
-    .update({ image_urls: updated })
-    .eq("id", currentImageCustomerId);
-
-  openImagesModal(currentImageCustomerId);
 });
+
+
+// multiImageInput.addEventListener("change", async () => {
+//   const files = Array.from(multiImageInput.files);
+//   if (!files.length) return;
+
+//   if (files.length > 100) {
+//     alert("Maximum 100 images allowed");
+//     return;
+//   }
+
+//   const uploadedUrls = [];
+
+//   for (const file of files) {
+//     const filePath = `public/${Date.now()}_${file.name}`;
+
+//     const { data, error } = await supabase.storage
+//       .from("customer-images")
+//       .upload(filePath, file);
+
+//     if (error) {
+//       alert("Upload failed");
+//       return;
+//     }
+
+//     const { data: publicData, error: urlError } = supabase
+//   .storage
+//   .from("customer-images")
+//   .getPublicUrl(data.path);
+
+// if (urlError) {
+//   console.error("Failed to get public URL:", urlError.message);
+// } else {
+//   uploadedUrls.push(publicData.publicUrl);
+// }
+
+//   }
+
+//   // save to DB
+//   const { data: customer } = await supabase
+//     .from("customers")
+//     .select("image_urls")
+//     .eq("id", currentImageCustomerId)
+//     .single();
+
+//   const existing = safeParseJSON(customer.image_urls, []);
+//   const updated = [...existing, ...uploadedUrls];
+
+//   await supabase
+//     .from("customers")
+//     .update({ image_urls: updated })
+//     .eq("id", currentImageCustomerId);
+
+//   openImagesModal(currentImageCustomerId);
+// });
+
 
 
 
