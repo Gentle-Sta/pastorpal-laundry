@@ -31,6 +31,17 @@ const customMessageDiv = document.getElementById("customMessageDiv");
 const customMessageInput = document.getElementById("customMessage");
 const sendWhatsappBtn = document.getElementById("sendWhatsappBtn");
 
+//image
+const imagesModal = new bootstrap.Modal(document.getElementById("imagesModal"));
+const imagePreviewModal = new bootstrap.Modal(document.getElementById("imagePreviewModal"));
+const gallery = document.getElementById("imageGallery");
+const multiImageInput = document.getElementById("multiImageInput");
+const previewImage = document.getElementById("previewImage");
+const clearSearchBtn = document.getElementById("clearSearchBtn");
+
+let currentImageCustomerId = null;
+
+
 let currentCustomerId = null;
 let currentPaymentCustomerId = null;
 let currentWhatsappPhone = null;
@@ -92,6 +103,7 @@ async function loadCustomers() {
         <td>${escapeHtml(c.description)}</td>
         <td>${c.totalItems ?? ''}</td>
         <td>${c.totalAmount ?? ''}</td>
+       
         <td>
           <span class="badge-status" style="
   background-color: ${c.status === 'Collected' ? '#28a745' : c.overdue ? '#dc3545' : '#ffc107'};
@@ -116,6 +128,10 @@ async function loadCustomers() {
           <button class="btn btn-sm btn-primary mb-1 add-payment-btn" data-id="${c.id}">Add Payment</button>
           <button class="btn btn-sm btn-success mb-1 btn-whatsapp" data-phone="${escapeHtml(c.phone)}" data-name="${escapeHtml(c.name)}">WhatsApp</button>
           <button class="btn btn-sm btn-dark mb-1 clothes-btn" data-id="${c.id}">Clothes</button>
+          <button class="btn btn-sm btn-secondary mb-1 images-btn" data-id="${c.id}">
+                      Images
+          </button>
+
         </td>`;
       tableBody.appendChild(tr);
       if (c.overdue && c.status === "Pending") {
@@ -126,6 +142,37 @@ async function loadCustomers() {
     console.error("Error loading customers", err.message);
   }
 }
+
+
+
+
+
+
+
+
+
+// Show / hide X when typing
+searchInput.addEventListener("input", () => {
+  clearSearchBtn.style.display = searchInput.value ? "block" : "none";
+  loadCustomers(); // already filters your table
+});
+
+// Clear search when X is clicked
+clearSearchBtn.addEventListener("click", () => {
+  searchInput.value = "";
+  clearSearchBtn.style.display = "none";
+  loadCustomers(); // reload full table
+});
+
+
+
+
+
+
+
+
+
+
 
 // VIEW DETAILS
 // ✅ FIXED viewDetails
@@ -152,7 +199,11 @@ async function viewDetails(id) {
     const paid = c.paid ? "Yes" : "No";
     const remaining = c.remaining ?? 0;
 
+
+
     modalBody.innerHTML = `
+    
+     
       <p><strong>Name:</strong> ${escapeHtml(c.name)}</p>
       <p><strong>Phone:</strong> ${escapeHtml(c.phone)}</p>
       <p><strong>Description:</strong> ${escapeHtml(c.description)}</p>
@@ -160,6 +211,9 @@ async function viewDetails(id) {
       <p><strong>No. of Clothes:</strong> ${c.totalItems ?? ''}</p>
       <p><strong>Remaining Clothes:</strong> ${remaining}</p>
       <p><strong>Total Amount:</strong> ₦${c.totalAmount ?? ''}</p>
+
+      
+         
       <p><strong>Total Paid:</strong> ₦${totalPaid}</p>
       <p><strong>Balance:</strong> ₦${balance}</p>
       <p><strong>Paid:</strong> ${paid}</p>
@@ -180,6 +234,20 @@ async function viewDetails(id) {
     alert("Failed to load customer details (see console).");
   }
 }
+
+// IMAGE HELPER FUNCTIONS
+function toggleImage() {
+  const box = document.getElementById("imageBox");
+  box.style.display = box.style.display === "none" ? "block" : "none";
+}
+
+function openFullImage(url) {
+  window.open(url, "_blank");
+}
+
+
+
+
 
 // COLLECT MODAL
 function openCollectModal(id) {
@@ -238,8 +306,147 @@ tableBody.addEventListener("click", async (e) => {
     viewDetails(id);
   }
 
+  if (btn.classList.contains("images-btn")) {
+    currentImageCustomerId = id;
+    openImagesModal(id);
+  }
+  
+
   
 });
+
+multiImageInput.addEventListener("change", async () => {
+  const files = Array.from(multiImageInput.files);
+  if (!files.length) return;
+
+  if (files.length > 100) {
+    alert("Maximum 100 images allowed");
+    return;
+  }
+
+  const uploadedUrls = [];
+
+  for (const file of files) {
+    const filePath = `public/${Date.now()}_${file.name}`;
+
+    const { data, error } = await supabase.storage
+      .from("customer-images")
+      .upload(filePath, file);
+
+    if (error) {
+      alert("Upload failed");
+      return;
+    }
+
+    const { data: publicData, error: urlError } = supabase
+  .storage
+  .from("customer-images")
+  .getPublicUrl(data.path);
+
+if (urlError) {
+  console.error("Failed to get public URL:", urlError.message);
+} else {
+  uploadedUrls.push(publicData.publicUrl);
+}
+
+  }
+
+  // save to DB
+  const { data: customer } = await supabase
+    .from("customers")
+    .select("image_urls")
+    .eq("id", currentImageCustomerId)
+    .single();
+
+  const existing = safeParseJSON(customer.image_urls, []);
+  const updated = [...existing, ...uploadedUrls];
+
+  await supabase
+    .from("customers")
+    .update({ image_urls: updated })
+    .eq("id", currentImageCustomerId);
+
+  openImagesModal(currentImageCustomerId);
+});
+
+
+
+// load images modal
+async function openImagesModal(customerId) {
+  gallery.innerHTML = "";
+
+  const { data, error } = await supabase
+    .from("customers")
+    .select("image_urls")
+    .eq("id", customerId)
+    .single();
+
+  if (error) {
+    alert("Failed to load images");
+    return;
+  }
+
+  const images = safeParseJSON(data.image_urls, []);
+
+  if (images.length === 0) {
+    gallery.innerHTML = `
+      <div class="text-center text-muted">
+        <p>No images yet</p>
+      </div>
+    `;
+  } else {
+    images.forEach((url, index) => {
+      const col = document.createElement("div");
+      col.className = "col-4 col-md-3 text-center mb-3";
+
+      col.innerHTML = `
+        <img src="${url}" style="width:100%; cursor:pointer;" />
+        <button class="btn btn-sm btn-danger mt-1 remove-img-btn">Remove</button>
+      `;
+
+      // Preview image on click
+      col.querySelector("img").onclick = () => {
+        previewImage.src = url;
+        imagePreviewModal.show();
+      };
+
+      // Remove button
+      col.querySelector(".remove-img-btn").onclick = async () => {
+        const passcode = "1234"; // ✅ hardcoded passcode
+        const input = prompt("Enter passcode to remove this image:");
+
+        if (input !== passcode) {
+          alert("❌ Incorrect passcode. Image not removed.");
+          return;
+        }
+
+        // Remove image from array
+        images.splice(index, 1);
+
+        // Update Supabase
+        const { error: updateError } = await supabase
+          .from("customers")
+          .update({ image_urls: images })
+          .eq("id", customerId);
+
+        if (updateError) {
+          alert("❌ Failed to remove image. See console.");
+          console.error(updateError);
+          return;
+        }
+
+        alert("✅ Image removed successfully!");
+        openImagesModal(customerId); // refresh modal
+      };
+
+      gallery.appendChild(col);
+    });
+  }
+
+  imagesModal.show();
+}
+
+
 
 //EDIT CUSTOMER
 async function editCustomer(id) {
@@ -421,6 +628,42 @@ form.addEventListener("submit", async (e) => {
   const instruction = document.getElementById("instruction").value;
   const agreedDate = document.getElementById("agreedDate").value;
 
+  
+  // 🖼️ IMAGE UPLOAD
+const fileInput = document.getElementById("customerImage");
+let imageUrl = null;
+
+if (fileInput.files.length > 0) {
+  const file = fileInput.files[0];
+
+  const filePath = `public/${Date.now()}_${file.name}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("customer-images")
+    .upload(filePath, file);
+
+  if (uploadError) {
+    console.error("Image upload error:", uploadError.message);
+    alert("Failed to upload image");
+    return;
+  }
+
+  const { data: publicData, error: urlError } = supabase
+  .storage
+  .from("customer-images")
+  .getPublicUrl(filePath);
+
+if (urlError) {
+  console.error("Failed to get public URL:", urlError.message);
+} else {
+  imageUrl = publicData.publicUrl;
+}
+
+}
+
+
+  
+
   const newCustomer = {
   date: new Date().toISOString(),
   name,
@@ -436,6 +679,7 @@ form.addEventListener("submit", async (e) => {
   payments: [],
   clothesLog: [],  // helpful for later
   remaining: totalItems,  // ✅ Set remaining equal to total clothes at start
+image: imageUrl  // store image URL if uploaded
 };
 
   try {
