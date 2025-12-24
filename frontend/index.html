@@ -21,7 +21,22 @@
 <body>
 
   <style>
-    
+    #priceListModal table td, 
+#priceListModal table th {
+  vertical-align: middle;
+}
+
+#addPriceBtn {
+  font-weight: 600;
+}
+
+.btn:hover{
+  transform: scale(1.05);
+  transition: transform 0.2s;
+  /* background:#000000;
+  color: white; */
+}
+
   </style>
 
   <!-- Navbar -->
@@ -46,6 +61,10 @@
           <li class="nav-item">
             <a class="btn btn-dark border-light fw-medium py-2 px-3" href="login.html" style="margin-right: 200px;">LOGIN</a>
           </li>
+          <button class="btn btn-outline-light text-dark bg-light" data-bs-toggle="modal" data-bs-target="#priceListModal">
+            📋 Price List
+          </button>
+          
 
     
         </ul>
@@ -79,7 +98,36 @@
   </div>
 
   <!-- Pricelist Modal -->
-
+  <div class="modal fade" id="priceListModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        
+        <div class="modal-header">
+          <h5 class="modal-title">Laundry Price List</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+  
+        <div class="modal-body">
+  
+          <button class="btn btn-primary mb-3" id="addPriceBtn">➕ Add Service</button>
+  
+          <table class="table table-bordered table-striped">
+            <thead class="table-dark">
+              <tr>
+                <th>Item</th>
+                <th>Category</th>
+                <th>Price (₦)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="priceTableBody"></tbody>
+          </table>
+  
+        </div>
+      </div>
+    </div>
+  </div>
+  
 
 
   <div class="container my-5" id="features">
@@ -236,6 +284,40 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@1.35.7"></script>
+
+<!-- Your supabase config -->
+<script src="supabase.js"></script>
+
+<!-- Your app logic -->
+<script>
+  async function loadPrices() {
+    const { data, error } = await supabase
+      .from("price_list")
+      .select("*");
+
+    console.log(data);
+  }
+</script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+  const SUPABASE_URL = "https://lbynmptomywbkpukjxex.supabase.co";
+  const SUPABASE_ANON_KEY = "xxxx";
+
+  const supabase = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
+</script> -->
+
+<script>
+  // YOUR price list JS (loadPrices, addPriceBtn, etc)
+</script>
+
 <script>
 AOS.init();
 
@@ -250,6 +332,96 @@ const navLinks = document.querySelectorAll('.navbar-nav .nav-link');
       bsCollapse.hide();
      });
    });
+
+
+   const priceTableBody = document.getElementById("priceTableBody");
+const addPriceBtn = document.getElementById("addPriceBtn");
+
+
+async function loadPrices() {
+  const { data, error } = await supabase
+    .from("price_list")
+    .select("*")
+    .order("item", { ascending: true });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  priceTableBody.innerHTML = "";
+  data.forEach(p => {
+    priceTableBody.innerHTML += `
+      <tr>
+        <td>${p.item}</td>
+        <td>${p.category}</td>
+        <td>₦${p.price}</td>
+        <td>
+          <button class="btn btn-sm btn-warning edit-price" data-id="${p.id}">Edit</button>
+          <button class="btn btn-sm btn-danger delete-price" data-id="${p.id}">Delete</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+document.getElementById("priceListModal")
+  .addEventListener("shown.bs.modal", loadPrices);
+
+
+
+
+  addPriceBtn.addEventListener("click", async () => {
+  const item = prompt("Item name:");
+  if (!item) return;
+
+  const category = prompt("Category (e.g. ironing, wash, emergency):");
+  if (!category) return;
+
+  const price = Number(prompt("Price:"));
+  if (!price || isNaN(price)) return alert("Invalid price");
+
+  const { error } = await supabase
+    .from("price_list")
+    .insert([{ item, category, price }]);
+
+  if (error) {
+    alert("Failed to add");
+    console.error(error);
+    return;
+  }
+
+  loadPrices();
+});
+
+
+
+
+priceTableBody.addEventListener("click", async (e) => {
+  const id = e.target.dataset.id;
+
+  if (e.target.classList.contains("edit-price")) {
+    const newPrice = Number(prompt("New price:"));
+    if (!newPrice || isNaN(newPrice)) return;
+
+    await supabase.from("price_list")
+      .update({ price: newPrice })
+      .eq("id", id);
+
+    loadPrices();
+  }
+
+  if (e.target.classList.contains("delete-price")) {
+    if (!confirm("Delete this service?")) return;
+
+    await supabase.from("price_list")
+      .delete()
+      .eq("id", id);
+
+    loadPrices();
+  }
+});
+
    
 
 
