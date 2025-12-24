@@ -4,10 +4,16 @@
   box-sizing: border-box;
   font-family: 'Segoe UI', sans-serif;
 }
-body {
+/* body {
     background: linear-gradient(to right, skyblue, #87ceeb);
+  } */
+  body {
+    min-height: 100vh;
+    background: linear-gradient(135deg, skyblue, #f9fcff);
+    font-family: "Segoe UI", Tahoma, sans-serif;
     overflow-x: hidden;
   }
+  
   .card i {
     font-size: 40px;
     color: white;
