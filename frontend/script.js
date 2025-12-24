@@ -321,7 +321,7 @@ multiImageInput.addEventListener("change", async () => {
   if (!files.length) return;
 
   if (files.length > 100) {
-    alert("Maximum 100 images allowed");
+    alert("You Can Upload More Images but You Have Reached Your Limit Of 100 images allowed");
     return;
   }
 
