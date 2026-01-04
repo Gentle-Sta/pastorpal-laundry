@@ -686,10 +686,15 @@ form.addEventListener("submit", async (e) => {
 
   
   // 🖼️ IMAGE UPLOAD
-const fileInput = document.getElementById("customerImage");
-let imageUrl = null;
+// const fileInput = document.getElementById("customerImage");
+// let imageUrl = null;
 
-if (fileInput.files.length > 0) {
+// if (fileInput.files.length > 0) {
+  const fileInput = document.getElementById("customerImage");
+  let imageUrl = null;
+  
+  if (fileInput && fileInput.files && fileInput.files.length > 0) {
+  
   const file = fileInput.files[0];
 
   const filePath = `public/${Date.now()}_${file.name}`;
