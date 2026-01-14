@@ -1,4 +1,6 @@
 
+const DELETE_PASSCODE = "1234"; // change this to your secret code
+
 // dom refs
 const tableBody = document.querySelector("#customersTable tbody");
 const form = document.getElementById("addCustomerForm");
@@ -192,8 +194,28 @@ async function viewDetails(id) {
     const totalPaid = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
     const balance = Math.max((Number(c.totalAmount) || 0) - totalPaid, 0);
     const clothesHtml = clothes.length
-      ? clothes.map(cl => `<li>${cl.num} — ${escapeHtml(cl.desc)} (${cl.date})</li>`).join('')
-      : '<li>No clothes collected yet</li>';
+  ? clothes.map((cl, index) => `
+      <li class="d-flex justify-content-between align-items-center mb-1">
+        <span>
+          ${cl.num} — ${escapeHtml(cl.desc)} (${cl.date})
+        </span>
+        <span>
+          <button 
+            class="btn btn-sm btn-warning edit-clothes-btn"
+            data-index="${index}"
+            data-id="${c.id}">
+            Edit
+          </button>
+          <button 
+            class="btn btn-sm btn-danger delete-clothes-btn"
+            data-index="${index}"
+            data-id="${c.id}">
+            Delete
+          </button>
+        </span>
+      </li>
+    `).join('')
+  : '<li>No clothes collected yet</li>';
 
     const overdue = c.overdue ? "Yes" : "No";
     const paid = c.paid ? "Yes" : "No";
@@ -234,6 +256,129 @@ async function viewDetails(id) {
     alert("Failed to load customer details (see console).");
   }
 }
+
+
+
+modalBody.addEventListener("click", async (e) => {
+  const editBtn = e.target.closest(".edit-clothes-btn");
+  const deleteBtn = e.target.closest(".delete-clothes-btn");
+
+  if (!editBtn && !deleteBtn) return;
+
+  const customerId = e.target.dataset.id;
+  const index = Number(e.target.dataset.index);
+
+  // fetch customer
+  const { data: customer, error } = await supabase
+    .from("customers")
+    .select("*")
+    .eq("id", customerId)
+    .single();
+
+  if (error) {
+    alert("Failed to load customer");
+    return;
+  }
+
+  let clothesLog = safeParseJSON(customer.clothesLog, []);
+
+  /* =========================
+     ✏️ EDIT CLOTHES LOG
+  ========================== */
+  if (editBtn) {
+    const oldNum = Number(clothesLog[index].num);
+    const oldDesc = clothesLog[index].desc;
+  
+    const newNum = Number(
+      prompt("Update number of clothes:", oldNum)
+    );
+  
+    if (!newNum || isNaN(newNum) || newNum <= 0) {
+      alert("❌ Invalid number of clothes");
+      return;
+    }
+  
+    const newDesc = prompt(
+      "Update description:",
+      oldDesc
+    );
+  
+    if (!newDesc || newDesc.trim() === "") {
+      alert("❌ Description cannot be empty");
+      return;
+    }
+  
+    clothesLog[index].num = newNum;
+    clothesLog[index].desc = newDesc.trim();
+  
+    const totalCollected = clothesLog.reduce(
+      (sum, log) => sum + Number(log.num || 0),
+      0
+    );
+  
+    const remaining = (customer.totalItems || 0) - totalCollected;
+  
+    const { error: updateError } = await supabase
+      .from("customers")
+      .update({ clothesLog, remaining })
+      .eq("id", customerId);
+  
+    if (updateError) {
+      alert("❌ Failed to update clothes log");
+      return;
+    }
+  
+    alert("✅ Clothes log updated successfully");
+    modal.hide();
+    loadCustomers();
+    return;
+  }
+  
+  /* =========================
+     🗑️ DELETE CLOTHES LOG
+  ========================== */
+  if (deleteBtn) {
+    const enteredCode = prompt(
+      "Enter passcode to delete this clothes log:"
+    );
+  
+    if (!enteredCode) {
+      alert("❌ Deletion cancelled");
+      return;
+    }
+  
+    if (enteredCode !== DELETE_PASSCODE) {
+      alert("❌ Wrong passcode! Clothes log not deleted.");
+      return;
+    }
+  
+    clothesLog.splice(index, 1);
+  
+    const totalCollected = clothesLog.reduce(
+      (sum, log) => sum + Number(log.num || 0),
+      0
+    );
+  
+    const remaining = (customer.totalItems || 0) - totalCollected;
+  
+    const { error: deleteError } = await supabase
+      .from("customers")
+      .update({ clothesLog, remaining })
+      .eq("id", customerId);
+  
+    if (deleteError) {
+      alert("❌ Failed to delete clothes log. Please try again.");
+      return;
+    }
+  
+    alert("🗑️ Clothes log deleted successfully");
+    modal.hide();
+    loadCustomers();
+  }
+  
+});
+
+
 
 // IMAGE HELPER FUNCTIONS
 function toggleImage() {
@@ -505,48 +650,100 @@ async function openImagesModal(customerId) {
 
 
 //EDIT CUSTOMER
+
+const editCustomerModal = new bootstrap.Modal(
+  document.getElementById("editCustomerModal")
+);
+
+document.getElementById("saveCustomerEditBtn").addEventListener("click", async () => {
+  const id = document.getElementById("editCustomerId").value;
+
+  const description = document.getElementById("editDescription").value.trim();
+  const totalItems = Number(document.getElementById("editTotalItems").value);
+  const totalAmount = Number(document.getElementById("editTotalAmount").value);
+
+  if (!description || totalItems <= 0 || totalAmount <= 0) {
+    alert("❌ Please fill all fields correctly");
+    return;
+  }
+
+  const { error } = await supabase
+    .from("customers")
+    .update({ description, totalItems, totalAmount })
+    .eq("id", id);
+
+  if (error) {
+    alert("❌ Failed to update customer");
+    return;
+  }
+
+  alert("✅ Customer updated successfully");
+  editCustomerModal.hide();
+  loadCustomers();
+});
+
 async function editCustomer(id) {
-  try {
-    const {data:customer, error:fetchError} = await supabase
+  const { data } = await supabase
     .from("customers")
     .select("*")
     .eq("id", id)
     .single();
 
-    if (fetchError) throw new Error("Failed to fetch customer");
+  document.getElementById("editCustomerId").value = id;
+  document.getElementById("editDescription").value = data.description;
+  document.getElementById("editTotalItems").value = data.totalItems;
+  document.getElementById("editTotalAmount").value = data.totalAmount;
 
-    const newDescription = prompt("Update description:",customer.description);
-    if (newDescription === null) return;
-
-    const newTotalItems = Number(prompt("Update Total Items:", customer.totalItems));
-    if (isNaN(newTotalItems)) {
-      alert("Invalid number for Total Items.");
-      return;
-    }
-
-    const newTotalAmount = Number(prompt("Update Total Amount:", customer.totalAmount));
-    if (isNaN(newTotalAmount)) {
-      alert("Invalid number for Total Amount.");
-      return;
-    }
-
-    const {error:updateError} = await supabase
-    .from("customers")
-    .update({
-      description:newDescription,
-      totalItems:newTotalItems,
-      totalAmount:newTotalAmount})
-    .eq("id", id);
-
-    if (updateError) throw updateError;
-
-    alert("Customer updated SUCCESSFULLY!.");
-    loadCustomers();
-  }catch(err){
-    console.error("Edit customer error:", err);
-    alert("Could not edit customer (see console).");
-  }
+  editCustomerModal.show();
 }
+
+
+
+
+
+
+// async function editCustomer(id) {
+//   try {
+//     const {data:customer, error:fetchError} = await supabase
+//     .from("customers")
+//     .select("*")
+//     .eq("id", id)
+//     .single();
+
+//     if (fetchError) throw new Error("Failed to fetch customer");
+
+//     const newDescription = prompt("Update description:",customer.description);
+//     if (newDescription === null) return;
+
+//     const newTotalItems = Number(prompt("Update Total Items:", customer.totalItems));
+//     if (isNaN(newTotalItems)) {
+//       alert("Invalid number for Total Items.");
+//       return;
+//     }
+
+//     const newTotalAmount = Number(prompt("Update Total Amount:", customer.totalAmount));
+//     if (isNaN(newTotalAmount)) {
+//       alert("Invalid number for Total Amount.");
+//       return;
+//     }
+
+//     const {error:updateError} = await supabase
+//     .from("customers")
+//     .update({
+//       description:newDescription,
+//       totalItems:newTotalItems,
+//       totalAmount:newTotalAmount})
+//     .eq("id", id);
+
+//     if (updateError) throw updateError;
+
+//     alert("Customer updated SUCCESSFULLY!.");
+//     loadCustomers();
+//   }catch(err){
+//     console.error("Edit customer error:", err);
+//     alert("Could not edit customer (see console).");
+//   }
+// }
 
 //OPEN PAYMENT MODAL
 function openPaymentModal(id) {
@@ -650,28 +847,90 @@ savePaymentBtn.addEventListener("click", async () => {
 });
 
 // DELETE CUSTOMER
-async function deleteCustomer(id) {
-  const passcode = "1234"; 
-  const input = prompt("Enter passcode to delete this customer:");
-  if (input === passcode) {
-    try {
-      const {error} = await supabase
-      .from('customers')
-      .delete()
-      .eq('id', id);
 
-      if (error) throw error;
-      
-      alert("✅ Customer deleted successfully!");
-      loadCustomers();
-    } catch (err) {
-      console.error("Delete failed:", err);
-      alert("Delete failed (see console).");
-    }
-  } else {
-    alert("❌ Incorrect passcode. Customer not deleted.");
+let deleteAction = null;
+
+const deleteModal = new bootstrap.Modal(
+  document.getElementById("deleteConfirmModal")
+);
+
+document.getElementById("confirmDeleteBtn").addEventListener("click", async () => {
+  const pass = document.getElementById("deletePasscodeInput").value;
+
+  if (pass !== DELETE_PASSCODE) {
+    alert("❌ Wrong passcode");
+    return;
   }
+
+  await deleteAction();
+  deleteModal.hide();
+  document.getElementById("deletePasscodeInput").value = "";
+});
+
+function deleteCustomer(id) {
+  document.getElementById("deleteMessage").textContent =
+    "Are you sure you want to delete this customer?";
+
+  deleteAction = async () => {
+    const { error } = await supabase
+      .from("customers")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      alert("❌ Delete failed");
+      return;
+    }
+
+    alert("✅ Customer deleted");
+    loadCustomers();
+  };
+
+  deleteModal.show();
 }
+
+// navigation
+function jumpTop() {
+  document.activeElement.scrollTop = 0;
+}
+
+function jumpBottom() {
+  const el = document.activeElement;
+  el.scrollTop = el.scrollHeight;
+}
+
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey && e.key === "ArrowUp") {
+    document.activeElement.scrollTop = 0;
+  }
+  if (e.ctrlKey && e.key === "ArrowDown") {
+    document.activeElement.scrollTop = document.activeElement.scrollHeight;
+  }
+});
+
+
+// async function deleteCustomer(id) {
+//   const passcode = "1234"; 
+//   const input = prompt("Enter passcode to delete this customer:");
+//   if (input === passcode) {
+//     try {
+//       const {error} = await supabase
+//       .from('customers')
+//       .delete()
+//       .eq('id', id);
+
+//       if (error) throw error;
+      
+//       alert("✅ Customer deleted successfully!");
+//       loadCustomers();
+//     } catch (err) {
+//       console.error("Delete failed:", err);
+//       alert("Delete failed (see console).");
+//     }
+//   } else {
+//     alert("❌ Incorrect passcode. Customer not deleted.");
+//   }
+// }
 
 // ADD NEW CUSTOMER
 form.addEventListener("submit", async (e) => {
