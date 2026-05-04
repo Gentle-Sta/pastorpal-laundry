@@ -128,7 +128,26 @@ async function loadCustomers() {
           <button class="btn btn-sm btn-warning mb-1 edit-btn" data-id="${c.id}">Edit</button>
           <button class="btn btn-sm btn-danger mb-1 delete-btn" data-id="${c.id}">Delete</button>
           <button class="btn btn-sm btn-primary mb-1 add-payment-btn" data-id="${c.id}">Add Payment</button>
-          <button class="btn btn-sm btn-success mb-1 btn-whatsapp" data-phone="${escapeHtml(c.phone)}" data-name="${escapeHtml(c.name)}">WhatsApp</button>
+          <button class="btn btn-sm btn-success mb-1 send-menu-btn" 
+  data-phone="${escapeHtml(c.phone)}" 
+  data-name="${escapeHtml(c.name)}">
+  Menu
+</button>
+
+<button class="btn btn-sm btn-outline-primary mb-1 send-status-btn" 
+  data-id="${c.id}">
+  Status
+</button>
+
+<button class="btn btn-sm btn-outline-warning mb-1 send-amount-btn" 
+  data-id="${c.id}">
+  Amount
+</button>
+
+<button class="btn btn-sm btn-outline-dark mb-1 send-record-btn" 
+  data-id="${c.id}">
+  Record
+</button>
           <button class="btn btn-sm btn-dark mb-1 clothes-btn" data-id="${c.id}">Clothes</button>
           <button class="btn btn-sm btn-secondary mb-1 images-btn" data-id="${c.id}">
                       Images
@@ -662,10 +681,15 @@ document.getElementById("saveCustomerEditBtn").addEventListener("click", async (
   const totalItems = Number(document.getElementById("editTotalItems").value);
   const totalAmount = Number(document.getElementById("editTotalAmount").value);
 
-  if (!description || totalItems <= 0 || totalAmount <= 0) {
+  if (
+    !description ||
+    isNaN(totalItems) || totalItems <= 0 ||
+    isNaN(totalAmount) || totalAmount < 0
+  ) {
     alert("❌ Please fill all fields correctly");
     return;
   }
+  
 
   const { error } = await supabase
     .from("customers")
@@ -1065,6 +1089,39 @@ tableBody.addEventListener("click", function (e) {
     whatsappModal.show();
     return;
   }
+
+  // SEND MENU
+if (btn.classList.contains("send-menu-btn")) {
+  const phone = btn.dataset.phone;
+  const name = btn.dataset.name;
+
+  const message = `Good day ${name} 👋
+
+This is PASTOR PAL Laundry 🧺
+
+Please choose an option:
+
+1️⃣ Check Status  
+2️⃣ Check Amount  
+3️⃣ View Records`;
+
+  openWhatsApp(phone, message);
+}
+
+// SEND STATUS
+if (btn.classList.contains("send-status-btn")) {
+  sendCustomerData(id, "status");
+}
+
+// SEND AMOUNT
+if (btn.classList.contains("send-amount-btn")) {
+  sendCustomerData(id, "amount");
+}
+
+// SEND RECORD
+if (btn.classList.contains("send-record-btn")) {
+  sendCustomerData(id, "record");
+}
 });
 
 // WHATSAPP MODAL LOGIC
@@ -1105,6 +1162,49 @@ searchInput.addEventListener("input", loadCustomers);
 
 // INITIAL LOAD
 loadCustomers();
+
+async function sendCustomerData(id, type) {
+  const { data: c, error } = await supabase
+    .from("customers")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    alert("Error fetching customer");
+    return;
+  }
+
+  let message = "";
+
+  if (type === "status") {
+    message = `Hello ${c.name}, your laundry status is: ${c.status}`;
+  }
+
+  if (type === "amount") {
+    message = `Hello ${c.name}, your total amount is ₦${c.totalAmount}`;
+  }
+
+  if (type === "record") {
+    message = `Hello ${c.name},
+
+🧾 Your Laundry Record:
+
+Description: ${c.description}
+Clothes: ${c.totalItems}
+Amount: ₦${c.totalAmount}
+Status: ${c.status}`;
+  }
+
+  openWhatsApp(c.phone, message);
+}
+
+function openWhatsApp(phone, message) {
+  const url = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+  window.open(url, "_blank");
+}
+
+
 
 
 
