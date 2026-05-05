@@ -128,7 +128,8 @@ async function loadCustomers() {
           <button class="btn btn-sm btn-warning mb-1 edit-btn" data-id="${c.id}">Edit</button>
           <button class="btn btn-sm btn-danger mb-1 delete-btn" data-id="${c.id}">Delete</button>
           <button class="btn btn-sm btn-primary mb-1 add-payment-btn" data-id="${c.id}">Add Payment</button>
-          <button class="btn btn-sm btn-success mb-1 send-menu-btn" 
+<button class="btn btn-sm btn-success mb-1 send-menu-btn" 
+  data-id="${c.id}"
   data-phone="${escapeHtml(c.phone)}" 
   data-name="${escapeHtml(c.name)}">
   Menu
@@ -1095,15 +1096,17 @@ if (btn.classList.contains("send-menu-btn")) {
   const phone = btn.dataset.phone;
   const name = btn.dataset.name;
 
-  const message = `Good day ${name} 👋
+  const link = `https://yourdomain.com/customer.html?id=${btn.dataset.id}`;
+
+const message = `Good day ${name} 👋
 
 This is PASTOR PAL Laundry 🧺
 
-Please choose an option:
+You can check your laundry details anytime here:
 
-1️⃣ Check Status  
-2️⃣ Check Amount  
-3️⃣ View Records`;
+🔗 ${link}
+
+Thank you 🙏`;
 
   openWhatsApp(phone, message);
 }
