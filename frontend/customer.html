@@ -1,93 +1,66 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Customer Laundry Status</title>
+  <title>PASTOR PAL Laundry Services</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
-    /* Increased base font and line spacing for elder customers */
-    body {
-      font-size: 15px; 
-      line-height: 1.3; 
-    }
-    
-    /* Bigger title */
-    h3 {
-      font-size: 1.9rem;
-      margin-bottom: 1.2rem;
-    }
-    
-    /* Extra padding inside the card so text doesn't touch the edges */
-    .card {
-      padding: 2rem !important; 
-    }
-    
-    /* Bigger text specifically for the customer data */
-    #content p {
-      font-size: 1.2rem; 
-      margin-bottom: 1rem;
-    }
-
-    /* Section headings to separate details clearly */
-    .section-title {
-      font-size: 1.3rem;
-      font-weight: bold;
-      color: #0056b3;
-      border-bottom: 2px solid #e0e0e0;
-      padding-bottom: 5px;
-      margin-top: 25px;
-      margin-bottom: 15px;
-    }
-
-    /* Make the description list look neat */
-    .description-box {
-      background-color: #f8f9fa;
-      padding: 15px;
-      border-radius: 8px;
-      border-left: 4px solid #007bff;
-      line-height: 2; /* Extra space for each line of clothes */
-      font-size: 1.4rem; /* ✅ INCREASED SIZE FOR THE ACTUAL CLOTHES TEXT */
-    }
-    
-    /* Highlight overdue warning */
-    .overdue-warning {
-      color: #dc3545;
-      font-weight: bold;
-      font-size: 1.3rem;
-    }
-
-    /* Payment list styling */
-    .payment-list li {
-      margin-bottom: 8px;
-      font-size: 1.1rem;
-    }
+    .tracking-card { max-width: 500px; margin: 0 auto; border: none; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+    .landing-hero { background: linear-gradient(135deg, #007bff, #0056b3); color: white; min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; }
+    .fake-input { border: 2px solid #e0e0e0; border-radius: 10px; padding: 15px; width: 100%; font-size: 16px; }
+    .fake-input:focus { outline: none; border-color: #007bff; }
   </style>
 </head>
 
-<body class="bg-light">
+<body>
 
-<div class="container mt-4">
-  <div class="card p-3 shadow">
-    <h3 class="text-center">🧺 Laundry Status</h3>
-    <div id="content">Loading...</div>
+<!-- THIS IS THE VIRAL TRAP: Shows if there is NO ?id= in the URL -->
+<div id="landingPage" class="landing-hero" style="display: none;">
+  <div class="container p-4">
+    <div class="mb-4">
+      <i class="fas fa-tshirt fa-3x mb-3"></i>
+      <h1 class="fw-bold">PASTOR PAL LAUNDRY</h1>
+      <p class="lead">Premium Laundry Services at Your Fingertips</p>
+    </div>
+    
+    <div class="card p-4 tracking-card mb-4">
+      <h5 class="fw-bold text-dark mb-3"><i class="fas fa-search text-primary"></i> Track My Clothes</h5>
+      <input type="text" class="fake-input mb-3" placeholder="Enter tracking code or phone number..." disabled>
+      <p class="small text-muted">Tracking links are sent directly to your WhatsApp after drop-off.</p>
+    </div>
+
+    <div class="mt-4">
+      <p>Ready to drop off your clothes?</p>
+      <a href="https://wa.me/2348115847132" target="_blank" class="btn btn-light btn-lg text-primary fw-bold shadow">
+        <i class="fab fa-whatsapp"></i> Contact Us on WhatsApp
+      </a>
+    </div>
+    <p class="mt-4 small opacity-75">&copy; 2025 PASTOR PAL Laundry. All rights reserved.</p>
+  </div>
+</div>
+
+<!-- THIS IS YOUR ORIGINAL TRACKING PAGE: Shows if ?id= exists -->
+<div id="trackingPage" class="bg-light" style="display: none;">
+  <div class="container mt-4">
+    <div class="card p-3 shadow tracking-card">
+      <div class="text-center mb-3">
+        <h3 class="fw-bold text-primary"><i class="fas fa-tshirt"></i> PASTOR PAL</h3>
+        <small class="text-muted">Laundry Status Tracker</small>
+      </div>
+      <hr>
+      <div id="content">Loading...</div>
+      <div class="text-center mt-3">
+        <a href="https://pastorpal-laundry.pages.dev" class="btn btn-sm btn-outline-secondary">Go to Homepage</a>
+      </div>
+    </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <script>
-// Helper function to safely read arrays from Supabase
-function safeParseJSON(value, fallback = []) {
-  if (Array.isArray(value)) return value;
-  if (!value) return fallback;
-  try {
-    const parsed = typeof value === "string" ? JSON.parse(value) : value;
-    return Array.isArray(parsed) ? parsed : fallback;
-  } catch { return fallback; }
-}
-
-const supabaseClient = window.supabase.createClient(
+const supabase = window.supabase.createClient(
   "https://lbynmptomywbkpukjxex.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxieW5tcHRvbXl3YmtwdWtqeGV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0MDg2ODUsImV4cCI6MjA3NTk4NDY4NX0.-O7JU8hjLYZSwTW7e9vfZz6n1klpf2pEPWYBgj3i5ZI"
 );
@@ -95,104 +68,54 @@ const supabaseClient = window.supabase.createClient(
 const urlParams = new URLSearchParams(window.location.search);
 const id = urlParams.get("id");
 
-async function loadCustomer() {
-  if (!id) {
-    document.getElementById("content").innerHTML = "<p class='text-danger'>Invalid link.</p>";
-    return;
-  }
+const landingPage = document.getElementById("landingPage");
+const trackingPage = document.getElementById("trackingPage");
 
-  const { data, error } = await supabaseClient
+// VIRAL TRAP LOGIC
+if (!id) {
+  // No ID found? Show the beautiful landing page!
+  landingPage.style.display = "flex";
+} else {
+  // ID found? Show their specific tracking data
+  trackingPage.style.display = "block";
+  loadCustomer();
+}
+
+async function loadCustomer() {
+  if (!id) return;
+
+  const { data, error } = await supabase
     .from("customers")
     .select("*")
     .eq("id", id)
     .single();
 
   if (error || !data) {
-    document.getElementById("content").innerHTML = "<p class='text-danger'>Customer not found.</p>";
+    document.getElementById("content").innerHTML = `
+      <div class="text-center text-danger">
+        <i class="fas fa-exclamation-triangle fa-2x"></i>
+        <p class="mt-2">Invalid tracking link.</p>
+      </div>`;
     return;
   }
 
-  // --- DATA PROCESSING ---
+  // Status color logic
+  let statusColor = "warning";
+  if(data.status === "Collected") statusColor = "success";
+  if(data.overdue) statusColor = "danger";
 
-  // 1. Format the date nicely for elders (e.g., "12th March, 2025")
-  const dateBrought = data.date ? new Date(data.date).toLocaleDateString('en-NG', { 
-    year: 'numeric', month: 'long', day: 'numeric' 
-  }) : "Not recorded";
-
-  // 2. Format Description: Split by comma and put each item on a new line
-  const formattedDesc = data.description 
-    ? data.description.split(',').map(item => `• ${item.trim()}`).join('<br>') 
-    : "None";
-
-  // 3. Check if Overdue
-  let isOverdue = false;
-  if (data.agreedDate && data.status === "Pending") {
-    isOverdue = new Date(data.agreedDate) < new Date();
-  }
-
-  // 4. Calculate Payments
-  const payments = safeParseJSON(data.payments, []);
-  const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-  const totalAmount = Number(data.totalAmount) || 0;
-  const balance = Math.max(totalAmount - totalPaid, 0);
-  
-  // Format payment history list
-  let paymentsHtml = "<li>No payments recorded yet</li>";
-  if (payments.length > 0) {
-    paymentsHtml = payments.map(p => {
-      const pDate = new Date(p.date).toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' });
-      return `<li>₦${p.amount} via <b>${p.method}</b> on ${pDate}</li>`;
-    }).join('');
-  }
-
-
-  // --- BUILD HTML ---
   document.getElementById("content").innerHTML = `
-    
-    <!-- SECTION 1: Customer Info & Status -->
-    <div class="section-title">Customer Information</div>
-    <p><b>Name:</b> ${data.name}</p>
-    <p><b>Phone:</b> ${data.phone}</p>
-    <p>
-      <b>Status:</b> 
-      <span style="color: ${data.status === 'Collected' ? 'green' : '#ffc107'}; font-weight: bold; font-size: 1.3rem;">
-        ${data.status}
-      </span>
-    </p>
-    ${isOverdue ? '<p class="overdue-warning">⚠️ Overdue for pickup!</p>' : ''}
-
-    <!-- SECTION 2: Dates -->
-    <div class="section-title">Important Dates</div>
-    <p><b>Date Brought:</b> ${dateBrought}</p>
-    <p><b>Agreed Pick-up Date:</b> ${data.agreedDate || "Not set"}</p>
-    ${data.status === 'Collected' ? `<p><b>Actual Pickup Date:</b> ${data.pickupDate || "Not set"}</p>` : ''}
-
-    <!-- SECTION 3: Clothes Details -->
-    <div class="section-title">Clothes Details</div>
-    <p><b>Special Instruction:</b> ${data.instruction || "None"}</p>
-    <p><b>Total Clothes Dropped:</b> ${data.totalItems ?? 0}</p>
-    <p><b>Remaining Clothes:</b> ${data.remaining ?? 0}</p>
-    
-    <p><b>Description of Clothes:</b></p>
-    <div class="description-box">
-      ${formattedDesc}
+    <div class="mb-3 text-center">
+      <span class="badge bg-${statusColor} fs-6 p-2 shadow-sm">${data.overdue ? 'Overdue' : data.status}</span>
     </div>
-
-    <!-- SECTION 4: Financials -->
-    <div class="section-title">Payment Information</div>
-    <p><b>Total Amount:</b> ₦${totalAmount.toLocaleString()}</p>
-    <p><b>Total Paid:</b> <span style="color: green; font-weight: bold;">₦${totalPaid.toLocaleString()}</span></p>
-    <p><b>Balance Remaining:</b> <span style="color: ${balance > 0 ? 'red' : 'green'}; font-weight: bold; font-size: 1.3rem;">₦${balance.toLocaleString()}</span></p>
-
-    <ul class="payment-list mt-3" style="list-style-type: none; padding: 0;">
-      <li><b>Payment History:</b></li>
-      ${paymentsHtml}
-    </ul>
-
+    <p><i class="fas fa-user text-primary"></i> <b>Name:</b> ${data.name}</p>
+    <p><i class="fas fa-tag text-primary"></i> <b>Description:</b> ${data.description}</p>
+    <p><i class="fas fa-tshirt text-primary"></i> <b>Total Clothes:</b> ${data.totalItems} <br> <small class="text-muted">(Remaining: ${data.remaining ?? 0})</small></p>
+    <p><i class="fas fa-money-bill-wave text-primary"></i> <b>Total Amount:</b> ₦${data.totalAmount}</p>
+    <hr>
+    <p class="text-muted small mb-0 fst-italic">"We handle the dirty work — so you can always look your best."</p>
   `;
 }
-
-loadCustomer();
 </script>
 
 </body>
