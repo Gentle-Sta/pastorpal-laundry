@@ -1096,13 +1096,13 @@ if (btn.classList.contains("send-menu-btn")) {
   const phone = btn.dataset.phone;
   const name = btn.dataset.name;
 
-  const link = `https://yourdomain.com/customer.html?id=${btn.dataset.id}`;
+  const link = `https://pastorpal-laundry.netlify.app/customer.html?id=${id}`;
 
 const message = `Good day ${name} 👋
 
 This is PASTOR PAL Laundry 🧺
 
-You can check your laundry details anytime here:
+Check your laundry status anytime here:
 
 🔗 ${link}
 
