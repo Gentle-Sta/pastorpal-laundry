@@ -1,5 +1,46 @@
 
 const DELETE_PASSCODE = "1234"; // change this to your secret code
+// ==========================================
+// SMART SUMMARY DASHBOARD FUNCTION
+// ==========================================
+function renderSmartSummary(customers) {
+  const container = document.getElementById("smartSummary");
+  if (!container) return;
+
+  const overdueCount = customers.filter(c => c.overdue && c.status === "Pending").length;
+  const pendingCount = customers.filter(c => c.status === "Pending").length;
+  const pendingRevenue = customers.filter(c => c.status === "Pending").reduce((sum, c) => sum + (Number(c.totalAmount) || 0), 0);
+  
+  const today = new Date().toISOString().split('T')[0];
+  const collectedToday = customers.filter(c => c.status === "Collected" && c.pickupDate === today).length;
+
+  container.innerHTML = `
+    <div class="col-md-3 col-6 p-2">
+      <div class="card border-0 shadow-sm p-2" style="background: #fff3cd;">
+        <h4 class="mb-0 text-warning">⚠️ ${overdueCount}</h4>
+        <small class="text-muted">Overdue</small>
+      </div>
+    </div>
+    <div class="col-md-3 col-6 p-2">
+      <div class="card border-0 shadow-sm p-2" style="background: #cce5ff;">
+        <h4 class="mb-0 text-primary">🧺 ${pendingCount}</h4>
+        <small class="text-muted">Pending Wash</small>
+      </div>
+    </div>
+    <div class="col-md-3 col-6 p-2">
+      <div class="card border-0 shadow-sm p-2" style="background: #d4edda;">
+        <h4 class="mb-0 text-success">💰 ₦${pendingRevenue.toLocaleString()}</h4>
+        <small class="text-muted">Pending Cash</small>
+      </div>
+    </div>
+    <div class="col-md-3 col-6 p-2">
+      <div class="card border-0 shadow-sm p-2" style="background: #e2e3e5;">
+        <h4 class="mb-0 text-secondary">✅ ${collectedToday}</h4>
+        <small class="text-muted">Collected Today</small>
+      </div>
+    </div>
+  `;
+}
 
 // dom refs
 const tableBody = document.querySelector("#customersTable tbody");
@@ -88,6 +129,7 @@ async function loadCustomers() {
       );
     }
 
+    renderSmartSummary(customers); // This feeds the data to the summary box
     tableBody.innerHTML = "";
     filtered.forEach(c => {
       const dateStamp = c.date || new Date().toLocaleString();
@@ -1206,8 +1248,3 @@ function openWhatsApp(phone, message) {
   const url = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
   window.open(url, "_blank");
 }
-
-
-
-
-
