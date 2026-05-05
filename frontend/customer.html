@@ -4,6 +4,65 @@
   <title>Customer Laundry Status</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <style>
+    /* Increased base font and line spacing for elder customers */
+    body {
+      font-size: 15px; 
+      line-height: 1.3; 
+    }
+    
+    /* Bigger title */
+    h3 {
+      font-size: 1.9rem;
+      margin-bottom: 1.2rem;
+    }
+    
+    /* Extra padding inside the card so text doesn't touch the edges */
+    .card {
+      padding: 2rem !important; 
+    }
+    
+    /* Bigger text specifically for the customer data */
+    #content p {
+      font-size: 1.2rem; 
+      margin-bottom: 1rem;
+    }
+
+    /* Section headings to separate details clearly */
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #0056b3;
+      border-bottom: 2px solid #e0e0e0;
+      padding-bottom: 5px;
+      margin-top: 25px;
+      margin-bottom: 15px;
+    }
+
+    /* Make the description list look neat */
+    .description-box {
+      background-color: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 4px solid #007bff;
+      line-height: 2; /* Extra space for each line of clothes */
+      font-size: 1.4rem; /* ✅ INCREASED SIZE FOR THE ACTUAL CLOTHES TEXT */
+    }
+    
+    /* Highlight overdue warning */
+    .overdue-warning {
+      color: #dc3545;
+      font-weight: bold;
+      font-size: 1.3rem;
+    }
+
+    /* Payment list styling */
+    .payment-list li {
+      margin-bottom: 8px;
+      font-size: 1.1rem;
+    }
+  </style>
 </head>
 
 <body class="bg-light">
@@ -11,7 +70,6 @@
 <div class="container mt-4">
   <div class="card p-3 shadow">
     <h3 class="text-center">🧺 Laundry Status</h3>
-
     <div id="content">Loading...</div>
   </div>
 </div>
@@ -19,38 +77,118 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <script>
-const supabase = window.supabase.createClient(
+// Helper function to safely read arrays from Supabase
+function safeParseJSON(value, fallback = []) {
+  if (Array.isArray(value)) return value;
+  if (!value) return fallback;
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch { return fallback; }
+}
+
+const supabaseClient = window.supabase.createClient(
   "https://lbynmptomywbkpukjxex.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxieW5tcHRvbXl3YmtwdWtqeGV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0MDg2ODUsImV4cCI6MjA3NTk4NDY4NX0.-O7JU8hjLYZSwTW7e9vfZz6n1klpf2pEPWYBgj3i5ZI"
 );
 
-// GET ID FROM LINK
 const urlParams = new URLSearchParams(window.location.search);
 const id = urlParams.get("id");
 
 async function loadCustomer() {
   if (!id) {
-    document.getElementById("content").innerHTML = "Invalid link";
+    document.getElementById("content").innerHTML = "<p class='text-danger'>Invalid link.</p>";
     return;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from("customers")
     .select("*")
     .eq("id", id)
     .single();
 
   if (error || !data) {
-    document.getElementById("content").innerHTML = "Customer not found";
+    document.getElementById("content").innerHTML = "<p class='text-danger'>Customer not found.</p>";
     return;
   }
 
+  // --- DATA PROCESSING ---
+
+  // 1. Format the date nicely for elders (e.g., "12th March, 2025")
+  const dateBrought = data.date ? new Date(data.date).toLocaleDateString('en-NG', { 
+    year: 'numeric', month: 'long', day: 'numeric' 
+  }) : "Not recorded";
+
+  // 2. Format Description: Split by comma and put each item on a new line
+  const formattedDesc = data.description 
+    ? data.description.split(',').map(item => `• ${item.trim()}`).join('<br>') 
+    : "None";
+
+  // 3. Check if Overdue
+  let isOverdue = false;
+  if (data.agreedDate && data.status === "Pending") {
+    isOverdue = new Date(data.agreedDate) < new Date();
+  }
+
+  // 4. Calculate Payments
+  const payments = safeParseJSON(data.payments, []);
+  const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const totalAmount = Number(data.totalAmount) || 0;
+  const balance = Math.max(totalAmount - totalPaid, 0);
+  
+  // Format payment history list
+  let paymentsHtml = "<li>No payments recorded yet</li>";
+  if (payments.length > 0) {
+    paymentsHtml = payments.map(p => {
+      const pDate = new Date(p.date).toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' });
+      return `<li>₦${p.amount} via <b>${p.method}</b> on ${pDate}</li>`;
+    }).join('');
+  }
+
+
+  // --- BUILD HTML ---
   document.getElementById("content").innerHTML = `
+    
+    <!-- SECTION 1: Customer Info & Status -->
+    <div class="section-title">Customer Information</div>
     <p><b>Name:</b> ${data.name}</p>
-    <p><b>Status:</b> ${data.status}</p>
-    <p><b>Total Amount:</b> ₦${data.totalAmount}</p>
-    <p><b>Remaining Items:</b> ${data.remaining}</p>
-    <p><b>Description:</b> ${data.description}</p>
+    <p><b>Phone:</b> ${data.phone}</p>
+    <p>
+      <b>Status:</b> 
+      <span style="color: ${data.status === 'Collected' ? 'green' : '#ffc107'}; font-weight: bold; font-size: 1.3rem;">
+        ${data.status}
+      </span>
+    </p>
+    ${isOverdue ? '<p class="overdue-warning">⚠️ Overdue for pickup!</p>' : ''}
+
+    <!-- SECTION 2: Dates -->
+    <div class="section-title">Important Dates</div>
+    <p><b>Date Brought:</b> ${dateBrought}</p>
+    <p><b>Agreed Pick-up Date:</b> ${data.agreedDate || "Not set"}</p>
+    ${data.status === 'Collected' ? `<p><b>Actual Pickup Date:</b> ${data.pickupDate || "Not set"}</p>` : ''}
+
+    <!-- SECTION 3: Clothes Details -->
+    <div class="section-title">Clothes Details</div>
+    <p><b>Special Instruction:</b> ${data.instruction || "None"}</p>
+    <p><b>Total Clothes Dropped:</b> ${data.totalItems ?? 0}</p>
+    <p><b>Remaining Clothes:</b> ${data.remaining ?? 0}</p>
+    
+    <p><b>Description of Clothes:</b></p>
+    <div class="description-box">
+      ${formattedDesc}
+    </div>
+
+    <!-- SECTION 4: Financials -->
+    <div class="section-title">Payment Information</div>
+    <p><b>Total Amount:</b> ₦${totalAmount.toLocaleString()}</p>
+    <p><b>Total Paid:</b> <span style="color: green; font-weight: bold;">₦${totalPaid.toLocaleString()}</span></p>
+    <p><b>Balance Remaining:</b> <span style="color: ${balance > 0 ? 'red' : 'green'}; font-weight: bold; font-size: 1.3rem;">₦${balance.toLocaleString()}</span></p>
+
+    <ul class="payment-list mt-3" style="list-style-type: none; padding: 0;">
+      <li><b>Payment History:</b></li>
+      ${paymentsHtml}
+    </ul>
+
   `;
 }
 
