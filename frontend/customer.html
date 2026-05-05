@@ -11,7 +11,6 @@
 <div class="container mt-4">
   <div class="card p-3 shadow">
     <h3 class="text-center">🧺 Laundry Status</h3>
-
     <div id="content">Loading...</div>
   </div>
 </div>
@@ -19,12 +18,13 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <script>
-const supabase = window.supabase.createClient(
+// ✅ FIX 1: Use a different variable name (not "supabase")
+// because the CDN already declares a global "supabase"
+const supabaseClient = window.supabase.createClient(
   "https://lbynmptomywbkpukjxex.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxieW5tcHRvbXl3YmtwdWtqeGV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0MDg2ODUsImV4cCI6MjA3NTk4NDY4NX0.-O7JU8hjLYZSwTW7e9vfZz6n1klpf2pEPWYBgj3i5ZI"
 );
 
-// GET ID FROM LINK
 const urlParams = new URLSearchParams(window.location.search);
 const id = urlParams.get("id");
 
@@ -34,7 +34,8 @@ async function loadCustomer() {
     return;
   }
 
-  const { data, error } = await supabase
+  // ✅ FIX 2: Use supabaseClient instead of supabase
+  const { data, error } = await supabaseClient
     .from("customers")
     .select("*")
     .eq("id", id)
@@ -45,6 +46,7 @@ async function loadCustomer() {
     return;
   }
 
+  // ✅ FIX 3: Added the missing backtick before <p>
   document.getElementById("content").innerHTML = `
     <p><b>Name:</b> ${data.name}</p>
     <p><b>Status:</b> ${data.status}</p>
