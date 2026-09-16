@@ -233,12 +233,7 @@ clearSearchBtn.addEventListener("click", () => {
 
 
 
-
-
-
-
-// VIEW DETAILS
-// ✅ FIXED viewDetails
+// VIEW DETAILS (UPDATED WITH PRICE PARSING)
 async function viewDetails(id) {
   try {
     const { data, error } = await supabase.from("customers").select("*").eq("id", id).single();
@@ -248,57 +243,55 @@ async function viewDetails(id) {
     const payments = safeParseJSON(c.payments, []);
     const clothes = safeParseJSON(c.clothesLog, []);
 
+    // Format Description with line-by-line price detection
+    let formattedDesc = "None";
+    if (c.description) {
+      const items = c.description.split(/,|\n/);
+      formattedDesc = items.map(item => {
+        const cleanItem = item.trim();
+        if (!cleanItem) return '';
+        const priceMatch = cleanItem.match(/\b\d{3,}\b/);
+        if (priceMatch) {
+          const extractedPrice = Number(priceMatch[0]).toLocaleString();
+          return `<div class="ms-2">• ${cleanItem} <strong class="text-success">(Price: ₦${extractedPrice})</strong></div>`;
+        }
+        return `<div class="ms-2">• ${cleanItem}</div>`;
+      }).join('');
+    }
+
     const paymentsHtml = payments.length
-      ? payments.map(p => `<li>${escapeHtml(p.method)} — ₦${p.amount} (${escapeHtml(p.date)})</li>`).join('')
+      ? payments.map(p => `<li>${escapeHtml(p.method)} — ₦${Number(p.amount).toLocaleString()} (${escapeHtml(p.date)})</li>`).join('')
       : '<li>No payments yet</li>';
 
     const totalPaid = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
     const balance = Math.max((Number(c.totalAmount) || 0) - totalPaid, 0);
     const clothesHtml = clothes.length
-  ? clothes.map((cl, index) => `
-      <li class="d-flex justify-content-between align-items-center mb-1">
-        <span>
-          ${cl.num} — ${escapeHtml(cl.desc)} (${cl.date})
-        </span>
-        <span>
-          <button 
-            class="btn btn-sm btn-warning edit-clothes-btn"
-            data-index="${index}"
-            data-id="${c.id}">
-            Edit
-          </button>
-          <button 
-            class="btn btn-sm btn-danger delete-clothes-btn"
-            data-index="${index}"
-            data-id="${c.id}">
-            Delete
-          </button>
-        </span>
-      </li>
-    `).join('')
-  : '<li>No clothes collected yet</li>';
+      ? clothes.map((cl, index) => `
+          <li class="d-flex justify-content-between align-items-center mb-1">
+            <span>${cl.num} — ${escapeHtml(cl.desc)} (${cl.date})</span>
+            <span>
+              <button class="btn btn-sm btn-warning edit-clothes-btn" data-index="${index}" data-id="${c.id}">Edit</button>
+              <button class="btn btn-sm btn-danger delete-clothes-btn" data-index="${index}" data-id="${c.id}">Delete</button>
+            </span>
+          </li>
+        `).join('')
+      : '<li>No clothes collected yet</li>';
 
     const overdue = c.overdue ? "Yes" : "No";
     const paid = c.paid ? "Yes" : "No";
     const remaining = c.remaining ?? 0;
 
-
-
     modalBody.innerHTML = `
-    
-     
       <p><strong>Name:</strong> ${escapeHtml(c.name)}</p>
       <p><strong>Phone:</strong> ${escapeHtml(c.phone)}</p>
-      <p><strong>Description:</strong> ${escapeHtml(c.description)}</p>
+      <p><strong>Description:</strong></p>
+      <div class="mb-2 p-2 bg-light rounded">${formattedDesc}</div>
       <p><strong>Special Instruction:</strong> ${escapeHtml(c.instruction || "None")}</p>
       <p><strong>No. of Clothes:</strong> ${c.totalItems ?? ''}</p>
       <p><strong>Remaining Clothes:</strong> ${remaining}</p>
-      <p><strong>Total Amount:</strong> ₦${c.totalAmount ?? ''}</p>
-
-      
-         
-      <p><strong>Total Paid:</strong> ₦${totalPaid}</p>
-      <p><strong>Balance:</strong> ₦${balance}</p>
+      <p><strong>Total Amount:</strong> ₦${Number(c.totalAmount || 0).toLocaleString()}</p>
+      <p><strong>Total Paid:</strong> ₦${totalPaid.toLocaleString()}</p>
+      <p><strong>Balance:</strong> ₦${balance.toLocaleString()}</p>
       <p><strong>Paid:</strong> ${paid}</p>
       <p><strong>Status:</strong> ${escapeHtml(c.status)}</p>
       <p><strong>Agreed Date:</strong> ${escapeHtml(c.agreedDate || "—")}</p>
