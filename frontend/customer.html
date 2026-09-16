@@ -4,32 +4,29 @@
   <title>Customer Laundry Status</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Include html2pdf library for downloading receipts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   
   <style>
-    /* Increased base font and line spacing for elder customers */
     body {
       font-size: 15px; 
       line-height: 1.3; 
     }
     
-    /* Bigger title */
     h3 {
       font-size: 1.9rem;
       margin-bottom: 1.2rem;
     }
     
-    /* Extra padding inside the card so text doesn't touch the edges */
     .card {
       padding: 2rem !important; 
     }
     
-    /* Bigger text specifically for the customer data */
     #content p {
       font-size: 1.2rem; 
       margin-bottom: 1rem;
     }
 
-    /* Section headings to separate details clearly */
     .section-title {
       font-size: 1.3rem;
       font-weight: bold;
@@ -40,36 +37,90 @@
       margin-bottom: 15px;
     }
 
-    /* Make the description list look neat */
     .description-box {
       background-color: #f8f9fa;
       padding: 15px;
       border-radius: 8px;
       border-left: 4px solid #007bff;
-      line-height: 2; /* Extra space for each line of clothes */
-      font-size: 1.4rem; /* ✅ INCREASED SIZE FOR THE ACTUAL CLOTHES TEXT */
+      line-height: 1.8;
+      font-size: 1.3rem;
+    }
+
+    .item-line {
+      margin-bottom: 8px;
+    }
+
+    .item-price {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #28a745;
+      margin-left: 15px;
+      display: block;
     }
     
-    /* Highlight overdue warning */
     .overdue-warning {
       color: #dc3545;
       font-weight: bold;
       font-size: 1.3rem;
     }
 
-    /* Payment list styling */
     .payment-list li {
       margin-bottom: 8px;
       font-size: 1.1rem;
+    }
+
+    /* Temporary Download Banner Animation */
+    #downloadBanner {
+      transition: opacity 1.5s ease-out;
+      opacity: 1;
+    }
+    #downloadBanner.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Printable/Downloadable Receipt Styling */
+    #receiptPrintArea {
+      background: #ffffff;
+      padding: 10px;
+    }
+    .receipt-header {
+      text-align: center;
+      margin-bottom: 20px;
+      border-bottom: 2px dashed #007bff;
+      padding-bottom: 15px;
+    }
+    .receipt-header img {
+      max-height: 70px;
+      margin-bottom: 10px;
     }
   </style>
 </head>
 
 <body class="bg-light">
 
-<div class="container mt-4">
-  <div class="card p-3 shadow">
-    <h3 class="text-center">🧺 Laundry Status</h3>
+<div class="container mt-4 mb-5">
+  <!-- Top Action & Notice Bar -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <button class="btn btn-success fw-bold px-3 py-2" id="downloadPdfBtn" onclick="downloadReceipt()">
+      📥 Download Receipt (PDF)
+    </button>
+  </div>
+
+  <!-- Temporary Bold Notice Banner -->
+  <div id="downloadBanner" class="alert alert-warning text-center fw-bold fs-5 shadow-sm" role="alert">
+    ⚠️ PLEASE IT IS ADVISED YOU DOWNLOAD THIS RECEIPT. CHECK THE BUTTON AT THE TOP!
+  </div>
+
+  <!-- Card container wrapper for PDF export -->
+  <div class="card p-3 shadow" id="receiptPrintArea">
+    <div class="receipt-header">
+      <img src="pastorpal-img.jpeg" alt="PASTOR PAL Logo" onerror="this.style.display='none'">
+      <h2 class="fw-bold text-primary mb-1">PASTOR PAL LAUNDRY</h2>
+      <p class="text-muted mb-0">Quality & Professional Laundry Services</p>
+    </div>
+
+    <h3 class="text-center">🧺 Laundry Receipt & Status</h3>
     <div id="content">Loading...</div>
   </div>
 </div>
@@ -77,7 +128,15 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <script>
-// Helper function to safely read arrays from Supabase
+// Fade out alert banner after display period
+setTimeout(() => {
+  const banner = document.getElementById("downloadBanner");
+  if (banner) {
+    banner.classList.add("fade-out");
+    setTimeout(() => banner.style.display = "none", 1500);
+  }
+}, 7000);
+
 function safeParseJSON(value, fallback = []) {
   if (Array.isArray(value)) return value;
   if (!value) return fallback;
@@ -94,6 +153,7 @@ const supabaseClient = window.supabase.createClient(
 
 const urlParams = new URLSearchParams(window.location.search);
 const id = urlParams.get("id");
+let customerNameForPdf = "Laundry_Receipt";
 
 async function loadCustomer() {
   if (!id) {
@@ -112,44 +172,55 @@ async function loadCustomer() {
     return;
   }
 
-  // --- DATA PROCESSING ---
+  customerNameForPdf = data.name ? data.name.replace(/\s+/g, '_') : "Customer";
 
-  // 1. Format the date nicely for elders (e.g., "12th March, 2025")
   const dateBrought = data.date ? new Date(data.date).toLocaleDateString('en-NG', { 
     year: 'numeric', month: 'long', day: 'numeric' 
   }) : "Not recorded";
 
-  // 2. Format Description: Split by comma and put each item on a new line
-  const formattedDesc = data.description 
-    ? data.description.split(',').map(item => `• ${item.trim()}`).join('<br>') 
-    : "None";
+  // Logic: Split clothes description by line/comma and parse prices (numbers with >=3 digits)
+  let formattedDesc = "None";
+  if (data.description) {
+    const items = data.description.split(/,|\n/);
+    formattedDesc = items.map(item => {
+      const cleanItem = item.trim();
+      if (!cleanItem) return '';
 
-  // 3. Check if Overdue
+      // Match numbers having 3 or more digits (e.g. 700, 1400)
+      const priceMatch = cleanItem.match(/\b\d{3,}\b/);
+      
+      if (priceMatch) {
+        const extractedPrice = Number(priceMatch[0]).toLocaleString();
+        return `
+          <div class="item-line">
+            • ${cleanItem}
+            <span class="item-price">Price: ₦${extractedPrice}</span>
+          </div>`;
+      } else {
+        return `<div class="item-line">• ${cleanItem}</div>`;
+      }
+    }).join('');
+  }
+
   let isOverdue = false;
   if (data.agreedDate && data.status === "Pending") {
     isOverdue = new Date(data.agreedDate) < new Date();
   }
 
-  // 4. Calculate Payments
   const payments = safeParseJSON(data.payments, []);
   const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
   const totalAmount = Number(data.totalAmount) || 0;
   const balance = Math.max(totalAmount - totalPaid, 0);
   
-  // Format payment history list
   let paymentsHtml = "<li>No payments recorded yet</li>";
   if (payments.length > 0) {
     paymentsHtml = payments.map(p => {
       const pDate = new Date(p.date).toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' });
-      return `<li>₦${p.amount} via <b>${p.method}</b> on ${pDate}</li>`;
+      return `<li>₦${p.amount.toLocaleString()} via <b>${p.method}</b> on ${pDate}</li>`;
     }).join('');
   }
 
-
-  // --- BUILD HTML ---
   document.getElementById("content").innerHTML = `
-    
-    <!-- SECTION 1: Customer Info & Status -->
     <div class="section-title">Customer Information</div>
     <p><b>Name:</b> ${data.name}</p>
     <p><b>Phone:</b> ${data.phone}</p>
@@ -161,13 +232,11 @@ async function loadCustomer() {
     </p>
     ${isOverdue ? '<p class="overdue-warning">⚠️ Overdue for pickup!</p>' : ''}
 
-    <!-- SECTION 2: Dates -->
     <div class="section-title">Important Dates</div>
     <p><b>Date Brought:</b> ${dateBrought}</p>
     <p><b>Agreed Pick-up Date:</b> ${data.agreedDate || "Not set"}</p>
     ${data.status === 'Collected' ? `<p><b>Actual Pickup Date:</b> ${data.pickupDate || "Not set"}</p>` : ''}
 
-    <!-- SECTION 3: Clothes Details -->
     <div class="section-title">Clothes Details</div>
     <p><b>Special Instruction:</b> ${data.instruction || "None"}</p>
     <p><b>Total Clothes Dropped:</b> ${data.totalItems ?? 0}</p>
@@ -178,7 +247,6 @@ async function loadCustomer() {
       ${formattedDesc}
     </div>
 
-    <!-- SECTION 4: Financials -->
     <div class="section-title">Payment Information</div>
     <p><b>Total Amount:</b> ₦${totalAmount.toLocaleString()}</p>
     <p><b>Total Paid:</b> <span style="color: green; font-weight: bold;">₦${totalPaid.toLocaleString()}</span></p>
@@ -188,8 +256,19 @@ async function loadCustomer() {
       <li><b>Payment History:</b></li>
       ${paymentsHtml}
     </ul>
-
   `;
+}
+
+function downloadReceipt() {
+  const element = document.getElementById('receiptPrintArea');
+  const opt = {
+    margin:       [0.3, 0.3, 0.3, 0.3],
+    filename:     `PastorPal_Receipt_${customerNameForPdf}.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2 },
+    jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+  };
+  html2pdf().set(opt).from(element).save();
 }
 
 loadCustomer();
