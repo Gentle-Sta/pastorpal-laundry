@@ -1,4 +1,3 @@
-
 const DELETE_PASSCODE = "1234"; // change this to your secret code
 // ==========================================
 // SMART SUMMARY DASHBOARD FUNCTION
