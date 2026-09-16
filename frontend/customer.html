@@ -178,7 +178,7 @@ async function loadCustomer() {
     year: 'numeric', month: 'long', day: 'numeric' 
   }) : "Not recorded";
 
-  // Logic: Split clothes description by line/comma and parse prices (numbers with >=3 digits)
+  // Logic: Split description, strip the price number from text, and show formatted Price line
   let formattedDesc = "None";
   if (data.description) {
     const items = data.description.split(/,|\n/);
@@ -191,9 +191,12 @@ async function loadCustomer() {
       
       if (priceMatch) {
         const extractedPrice = Number(priceMatch[0]).toLocaleString();
+        // Remove the numeric price and trailing/leading spaces from item name
+        const nameWithoutPrice = cleanItem.replace(/\b\d{3,}\b/, '').trim();
+        
         return `
           <div class="item-line">
-            • ${cleanItem}
+            • ${nameWithoutPrice}
             <span class="item-price">Price: ₦${extractedPrice}</span>
           </div>`;
       } else {
