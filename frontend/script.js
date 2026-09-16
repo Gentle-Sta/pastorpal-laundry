@@ -233,7 +233,7 @@ clearSearchBtn.addEventListener("click", () => {
 
 
 
-// VIEW DETAILS (UPDATED WITH PRICE PARSING)
+// VIEW DETAILS (UPDATED WITH PRICE REMOVAL FROM TEXT LINE)
 async function viewDetails(id) {
   try {
     const { data, error } = await supabase.from("customers").select("*").eq("id", id).single();
@@ -243,7 +243,7 @@ async function viewDetails(id) {
     const payments = safeParseJSON(c.payments, []);
     const clothes = safeParseJSON(c.clothesLog, []);
 
-    // Format Description with line-by-line price detection
+    // Format Description & remove numbers from item titles
     let formattedDesc = "None";
     if (c.description) {
       const items = c.description.split(/,|\n/);
@@ -253,7 +253,8 @@ async function viewDetails(id) {
         const priceMatch = cleanItem.match(/\b\d{3,}\b/);
         if (priceMatch) {
           const extractedPrice = Number(priceMatch[0]).toLocaleString();
-          return `<div class="ms-2">• ${cleanItem} <strong class="text-success">(Price: ₦${extractedPrice})</strong></div>`;
+          const nameWithoutPrice = cleanItem.replace(/\b\d{3,}\b/, '').trim();
+          return `<div class="ms-2">• ${nameWithoutPrice} <strong class="text-success">(Price: ₦${extractedPrice})</strong></div>`;
         }
         return `<div class="ms-2">• ${cleanItem}</div>`;
       }).join('');
