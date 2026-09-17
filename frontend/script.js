@@ -1137,7 +1137,7 @@ const message = `Good day ${name} 👋
 
 This is PASTOR PAL Laundry 🧺
 
-Check your laundry status anytime here:
+Check and DOWNLOAD your laundry status anytime here:
 
 🔗 ${link}
 
