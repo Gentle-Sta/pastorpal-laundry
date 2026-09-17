@@ -4,7 +4,6 @@
   <title>Customer Laundry Status</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Include html2pdf library for downloading receipts -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   
   <style>
@@ -37,6 +36,20 @@
       margin-bottom: 15px;
     }
 
+    /* Sub-header badge style for mixed services */
+    .service-badge {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #0d6efd;
+      background-color: #e7f1ff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      margin-top: 14px;
+      margin-bottom: 8px;
+      display: inline-block;
+      border-left: 3px solid #0d6efd;
+    }
+
     .description-box {
       background-color: #f8f9fa;
       padding: 15px;
@@ -48,6 +61,7 @@
 
     .item-line {
       margin-bottom: 8px;
+      padding-left: 5px;
     }
 
     .item-price {
@@ -69,7 +83,7 @@
       font-size: 1.1rem;
     }
 
-    /* Temporary Download Banner Animation */
+    /* Download Banner Animation */
     #downloadBanner {
       transition: opacity 1.5s ease-out;
       opacity: 1;
@@ -100,40 +114,46 @@
       padding: 1rem !important;
     }
     .pdf-compact h3 {
-      font-size: 1.4rem !important;
-      margin-bottom: 0.8rem !important;
+      font-size: 1.3rem !important;
+      margin-bottom: 0.6rem !important;
     }
     .pdf-compact .receipt-header {
       margin-bottom: 10px !important;
       padding-bottom: 8px !important;
     }
     .pdf-compact .receipt-header h2 {
-      font-size: 1.5rem !important;
+      font-size: 1.4rem !important;
     }
     .pdf-compact .section-title {
       font-size: 1rem !important;
-      margin-top: 12px !important;
-      margin-bottom: 8px !important;
+      margin-top: 10px !important;
+      margin-bottom: 6px !important;
       padding-bottom: 2px !important;
     }
+    .pdf-compact .service-badge {
+      font-size: 0.9rem !important;
+      padding: 4px 8px !important;
+      margin-top: 8px !important;
+      margin-bottom: 4px !important;
+    }
     .pdf-compact #content p {
-      font-size: 0.95rem !important;
-      margin-bottom: 0.4rem !important;
+      font-size: 0.9rem !important;
+      margin-bottom: 0.3rem !important;
     }
     .pdf-compact .description-box {
       padding: 8px !important;
-      font-size: 0.95rem !important;
-      line-height: 1.4 !important;
+      font-size: 0.9rem !important;
+      line-height: 1.3 !important;
     }
     .pdf-compact .item-line {
       margin-bottom: 4px !important;
     }
     .pdf-compact .item-price {
-      font-size: 0.9rem !important;
+      font-size: 0.85rem !important;
     }
     .pdf-compact .payment-list li {
-      font-size: 0.9rem !important;
-      margin-bottom: 4px !important;
+      font-size: 0.85rem !important;
+      margin-bottom: 3px !important;
     }
   </style>
 </head>
@@ -141,19 +161,16 @@
 <body class="bg-light">
 
 <div class="container mt-4 mb-5">
-  <!-- Top Action & Notice Bar -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <button class="btn btn-success fw-bold px-3 py-2" id="downloadPdfBtn" onclick="downloadReceipt()">
       📥 Download Receipt (PDF)
     </button>
   </div>
 
-  <!-- Temporary Bold Notice Banner -->
   <div id="downloadBanner" class="alert alert-warning text-center fw-bold fs-5 shadow-sm" role="alert">
     ⚠️ PLEASE IT IS ADVISED YOU DOWNLOAD THIS RECEIPT. CHECK THE BUTTON AT THE TOP!
   </div>
 
-  <!-- Card container wrapper for PDF export -->
   <div class="card p-3 shadow" id="receiptPrintArea">
     <div class="receipt-header">
       <img src="pastorpal-img.jpeg" alt="PASTOR PAL Logo" onerror="this.style.display='none'">
@@ -169,7 +186,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <script>
-// Fade out alert banner after display period
 setTimeout(() => {
   const banner = document.getElementById("downloadBanner");
   if (banner) {
@@ -219,26 +235,33 @@ async function loadCustomer() {
     year: 'numeric', month: 'long', day: 'numeric' 
   }) : "Not recorded";
 
+  // Parse lines for service tags [Like This] or regular clothes items
   let formattedDesc = "None";
   if (data.description) {
-    const items = data.description.split(/,|\n/);
-    formattedDesc = items.map(item => {
-      const cleanItem = item.trim();
-      if (!cleanItem) return '';
+    const lines = data.description.split(/\r?\n/);
+    formattedDesc = lines.map(line => {
+      const cleanLine = line.trim();
+      if (!cleanLine) return '';
 
-      const priceMatch = cleanItem.match(/\b\d{3,}\b/);
-      
+      // Check if the line is a service header in brackets e.g. [Wash & Iron] or [Ironing Only]
+      const serviceMatch = cleanLine.match(/^\[(.*?)\]$/);
+      if (serviceMatch) {
+        const title = serviceMatch[1].toUpperCase();
+        return `<div class="service-badge">🧺 SERVICE: ${title}</div>`;
+      }
+
+      // Handle item lines with prices
+      const priceMatch = cleanLine.match(/\b\d{3,}\b/);
       if (priceMatch) {
         const extractedPrice = Number(priceMatch[0]).toLocaleString();
-        const nameWithoutPrice = cleanItem.replace(/\b\d{3,}\b/, '').trim();
-        
+        const nameWithoutPrice = cleanLine.replace(/\b\d{3,}\b/, '').trim();
         return `
           <div class="item-line">
             • ${nameWithoutPrice}
             <span class="item-price">Price: ₦${extractedPrice}</span>
           </div>`;
       } else {
-        return `<div class="item-line">• ${cleanItem}</div>`;
+        return `<div class="item-line">• ${cleanLine}</div>`;
       }
     }).join('');
   }
@@ -278,12 +301,12 @@ async function loadCustomer() {
     <p><b>Agreed Pick-up Date:</b> ${data.agreedDate || "Not set"}</p>
     ${data.status === 'Collected' ? `<p><b>Actual Pickup Date:</b> ${data.pickupDate || "Not set"}</p>` : ''}
 
-    <div class="section-title">Clothes Details</div>
-    <p><b>Special Instruction:</b> ${data.instruction || "None"}</p>
+    <div class="section-title">Clothes & Service Details</div>
+    <p><b>General Notes:</b> ${data.instruction || "None"}</p>
     <p><b>Total Clothes Dropped:</b> ${data.totalItems ?? 0}</p>
     <p><b>Remaining Clothes:</b> ${data.remaining ?? 0}</p>
     
-    <p><b>Description of Clothes:</b></p>
+    <p><b>Breakdown:</b></p>
     <div class="description-box">
       ${formattedDesc}
     </div>
@@ -302,8 +325,6 @@ async function loadCustomer() {
 
 function downloadReceipt() {
   const element = document.getElementById('receiptPrintArea');
-  
-  // Temporarily add compact styling class before PDF generation
   element.classList.add('pdf-compact');
 
   const opt = {
@@ -316,7 +337,6 @@ function downloadReceipt() {
   };
 
   html2pdf().set(opt).from(element).save().then(() => {
-    // Remove compact styling class to preserve main site appearance
     element.classList.remove('pdf-compact');
   });
 }
