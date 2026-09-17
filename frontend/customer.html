@@ -36,16 +36,15 @@
       margin-bottom: 15px;
     }
 
-    /* Sub-header badge style for mixed services */
     .service-badge {
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       font-weight: 700;
       color: #0d6efd;
       background-color: #e7f1ff;
-      padding: 6px 12px;
+      padding: 5px 10px;
       border-radius: 6px;
-      margin-top: 14px;
-      margin-bottom: 8px;
+      margin-top: 12px;
+      margin-bottom: 6px;
       display: inline-block;
       border-left: 3px solid #0d6efd;
     }
@@ -131,10 +130,10 @@
       padding-bottom: 2px !important;
     }
     .pdf-compact .service-badge {
-      font-size: 0.9rem !important;
-      padding: 4px 8px !important;
-      margin-top: 8px !important;
-      margin-bottom: 4px !important;
+      font-size: 0.85rem !important;
+      padding: 3px 6px !important;
+      margin-top: 6px !important;
+      margin-bottom: 3px !important;
     }
     .pdf-compact #content p {
       font-size: 0.9rem !important;
@@ -235,33 +234,44 @@ async function loadCustomer() {
     year: 'numeric', month: 'long', day: 'numeric' 
   }) : "Not recorded";
 
-  // Parse lines for service tags [Like This] or regular clothes items
   let formattedDesc = "None";
   if (data.description) {
-    const lines = data.description.split(/\r?\n/);
-    formattedDesc = lines.map(line => {
-      const cleanLine = line.trim();
-      if (!cleanLine) return '';
+    // Splits input by commas, newlines, or semicolons
+    const segments = data.description.split(/,|\n|;/);
+    
+    formattedDesc = segments.map(segment => {
+      let clean = segment.trim();
+      if (!clean) return '';
 
-      // Check if the line is a service header in brackets e.g. [Wash & Iron] or [Ironing Only]
-      const serviceMatch = cleanLine.match(/^\[(.*?)\]$/);
-      if (serviceMatch) {
-        const title = serviceMatch[1].toUpperCase();
-        return `<div class="service-badge">🧺 SERVICE: ${title}</div>`;
+      let headerHtml = '';
+
+      // Extract bracketed service tags like [wash and iron] or [iron only]
+      const tagMatch = clean.match(/\[(.*?)\]/gi);
+      if (tagMatch) {
+        tagMatch.forEach(tag => {
+          const serviceName = tag.replace(/\[|\]/g, '').toUpperCase();
+          headerHtml += `<div class="service-badge">🧺 SERVICE: ${serviceName}</div>`;
+          clean = clean.replace(tag, '').trim();
+        });
       }
 
-      // Handle item lines with prices
-      const priceMatch = cleanLine.match(/\b\d{3,}\b/);
+      if (!clean) return headerHtml;
+
+      // Extract item price
+      const priceMatch = clean.match(/\b\d{3,}\b/);
       if (priceMatch) {
         const extractedPrice = Number(priceMatch[0]).toLocaleString();
-        const nameWithoutPrice = cleanLine.replace(/\b\d{3,}\b/, '').trim();
+        const itemName = clean.replace(/\b\d{3,}\b/, '').trim();
         return `
+          ${headerHtml}
           <div class="item-line">
-            • ${nameWithoutPrice}
+            • ${itemName}
             <span class="item-price">Price: ₦${extractedPrice}</span>
           </div>`;
       } else {
-        return `<div class="item-line">• ${cleanLine}</div>`;
+        return `
+          ${headerHtml}
+          <div class="item-line">• ${clean}</div>`;
       }
     }).join('');
   }
