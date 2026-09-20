@@ -1241,3 +1241,31 @@ function openWhatsApp(phone, message) {
   const url = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
   window.open(url, "_blank");
 }
+
+
+
+let deferredPrompt;
+const installBtn = document.getElementById('pwaInstallBtn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevent default Chrome install banner
+  e.preventDefault();
+  deferredPrompt = e;
+  
+  // Show custom install button
+  if (installBtn) {
+    installBtn.classList.remove('d-none');
+    
+    installBtn.addEventListener('click', () => {
+      installBtn.classList.add('d-none');
+      deferredPrompt.prompt();
+      
+      deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+        }
+        deferredPrompt = null;
+      });
+    });
+  }
+});
