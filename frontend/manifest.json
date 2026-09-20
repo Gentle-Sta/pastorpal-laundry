@@ -1,0 +1,21 @@
+{
+  "short_name": "PastorPal",
+  "name": "Pastor Pal Laundry Services",
+  "icons": [
+    {
+      "src": "image/favicon2.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "image/favicon2.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/index.html",
+  "background_color": "#ffffff",
+  "theme_color": "#007bff",
+  "display": "standalone",
+  "orientation": "portrait"
+}
