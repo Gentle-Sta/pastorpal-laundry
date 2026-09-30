@@ -86,7 +86,8 @@
     }
 
     .payment-section {
-      page-break-before: auto;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
 
     .payment-list {
@@ -125,58 +126,6 @@
     .receipt-header img {
       max-height: 70px;
       margin-bottom: 10px;
-    }
-
-    /* Temporary class added dynamically during PDF generation */
-    .pdf-render-mode {
-      width: 790px !important;
-      max-width: 790px !important;
-      margin: 0 auto !important;
-      padding: 1.2rem !important;
-      box-sizing: border-box !important;
-      font-size: 13px !important;
-    }
-    .pdf-render-mode h3 {
-      font-size: 1.4rem !important;
-      margin-bottom: 0.8rem !important;
-    }
-    .pdf-render-mode .receipt-header {
-      margin-bottom: 12px !important;
-      padding-bottom: 10px !important;
-    }
-    .pdf-render-mode .receipt-header h2 {
-      font-size: 1.5rem !important;
-    }
-    .pdf-render-mode .section-title {
-      font-size: 1.1rem !important;
-      margin-top: 15px !important;
-      margin-bottom: 8px !important;
-      padding-bottom: 3px !important;
-    }
-    .pdf-render-mode .service-badge {
-      font-size: 0.9rem !important;
-      padding: 4px 8px !important;
-      margin-top: 8px !important;
-      margin-bottom: 4px !important;
-    }
-    .pdf-render-mode #content p {
-      font-size: 1rem !important;
-      margin-bottom: 0.4rem !important;
-    }
-    .pdf-render-mode .description-box {
-      padding: 10px !important;
-      font-size: 1rem !important;
-      line-height: 1.4 !important;
-    }
-    .pdf-render-mode .item-line {
-      margin-bottom: 6px !important;
-    }
-    .pdf-render-mode .item-price {
-      font-size: 0.95rem !important;
-    }
-    .pdf-render-mode .payment-list li {
-      font-size: 0.95rem !important;
-      margin-bottom: 5px !important;
     }
   </style>
 </head>
@@ -357,30 +306,41 @@ async function loadCustomer() {
 }
 
 async function downloadReceipt() {
-  const element = document.getElementById('receiptPrintArea');
+  const original = document.getElementById('receiptPrintArea');
   
-  // Apply desktop rendering class temporary lock
-  element.classList.add('pdf-render-mode');
+  // Clone the receipt element to isolate it from mobile screen constraints
+  const clone = original.cloneNode(true);
+  
+  // Create an off-screen container with a fixed desktop width
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'absolute';
+  wrapper.style.left = '-9999px';
+  wrapper.style.top = '0';
+  wrapper.style.width = '750px'; // Lock exact printable width
+  wrapper.style.background = '#ffffff';
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
 
   const opt = {
-    margin:       [0.3, 0.3, 0.3, 0.3],
+    margin:       [0.4, 0.4, 0.4, 0.4],
     filename:     `PastorPal_Receipt_${customerNameForPdf}.pdf`,
     image:        { type: 'jpeg', quality: 0.98 },
     html2canvas:  { 
       scale: 2, 
       useCORS: true, 
       logging: false,
-      windowWidth: 800 // Forces html2canvas to render as desktop resolution
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: 800
     },
     jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-    pagebreak:    { mode: ['css', 'legacy'], avoid: ['.item-line', 'li', '.service-badge'] }
+    pagebreak:    { mode: ['css', 'legacy'], avoid: ['.payment-section', '.item-line', 'li', '.service-badge'] }
   };
 
   try {
-    await html2pdf().set(opt).from(element).save();
+    await html2pdf().set(opt).from(clone).save();
   } finally {
-    // Remove temporary class so screen layout goes back to normal responsive mobile view
-    element.classList.remove('pdf-render-mode');
+    document.body.removeChild(wrapper);
   }
 }
 
