@@ -34,6 +34,8 @@
       padding-bottom: 5px;
       margin-top: 25px;
       margin-bottom: 15px;
+      page-break-after: avoid;
+      break-after: avoid;
     }
 
     .service-badge {
@@ -56,11 +58,15 @@
       border-left: 4px solid #007bff;
       line-height: 1.8;
       font-size: 1.3rem;
+      page-break-inside: auto;
+      break-inside: auto;
     }
 
     .item-line {
       margin-bottom: 8px;
       padding-left: 5px;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
 
     .item-price {
@@ -77,9 +83,21 @@
       font-size: 1.3rem;
     }
 
+    .payment-section {
+      page-break-inside: auto;
+      break-inside: auto;
+    }
+
+    .payment-list {
+      page-break-inside: auto;
+      break-inside: auto;
+    }
+
     .payment-list li {
       margin-bottom: 8px;
       font-size: 1.1rem;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
 
     /* Download Banner Animation */
@@ -249,7 +267,7 @@ async function loadCustomer() {
       const tagMatch = clean.match(/\[(.*?)\]/gi);
       if (tagMatch) {
         tagMatch.forEach(tag => {
-          const serviceName = tag.replace(/\[|\]/g, '').toUpperCase();
+          const serviceName = tag.replace(/\[\vert{}\]/g, '').toUpperCase();
           headerHtml += `<div class="service-badge">🧺 SERVICE: ${serviceName}</div>`;
           clean = clean.replace(tag, '').trim();
         });
@@ -321,15 +339,17 @@ async function loadCustomer() {
       ${formattedDesc}
     </div>
 
-    <div class="section-title">Payment Information</div>
-    <p><b>Total Amount:</b> ₦${totalAmount.toLocaleString()}</p>
-    <p><b>Total Paid:</b> <span style="color: green; font-weight: bold;">₦${totalPaid.toLocaleString()}</span></p>
-    <p><b>Balance Remaining:</b> <span style="color: ${balance > 0 ? 'red' : 'green'}; font-weight: bold; font-size: 1.3rem;">₦${balance.toLocaleString()}</span></p>
+    <div class="payment-section">
+      <div class="section-title">Payment Information</div>
+      <p><b>Total Amount:</b> ₦${totalAmount.toLocaleString()}</p>
+      <p><b>Total Paid:</b> <span style="color: green; font-weight: bold;">₦${totalPaid.toLocaleString()}</span></p>
+      <p><b>Balance Remaining:</b> <span style="color: ${balance > 0 ? 'red' : 'green'}; font-weight: bold; font-size: 1.3rem;">₦${balance.toLocaleString()}</span></p>
 
-    <ul class="payment-list mt-3" style="list-style-type: none; padding: 0;">
-      <li><b>Payment History:</b></li>
-      ${paymentsHtml}
-    </ul>
+      <ul class="payment-list mt-3" style="list-style-type: none; padding: 0;">
+        <li><b>Payment History:</b></li>
+        ${paymentsHtml}
+      </ul>
+    </div>
   `;
 }
 
@@ -338,12 +358,12 @@ function downloadReceipt() {
   element.classList.add('pdf-compact');
 
   const opt = {
-    margin:       [0.2, 0.2, 0.2, 0.2],
+    margin:       [0.4, 0.3, 0.4, 0.3], // Top, Left, Bottom, Right
     filename:     `PastorPal_Receipt_${customerNameForPdf}.pdf`,
     image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2, useCORS: true },
+    html2canvas:  { scale: 2, useCORS: true, logging: false },
     jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-    pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+    pagebreak:    { mode: ['css', 'legacy'] }
   };
 
   html2pdf().set(opt).from(element).save().then(() => {
