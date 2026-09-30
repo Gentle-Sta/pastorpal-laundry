@@ -49,6 +49,8 @@
       margin-bottom: 6px;
       display: inline-block;
       border-left: 3px solid #0d6efd;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
 
     .description-box {
@@ -58,8 +60,8 @@
       border-left: 4px solid #007bff;
       line-height: 1.8;
       font-size: 1.3rem;
-      page-break-inside: auto;
-      break-inside: auto;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
 
     .item-line {
@@ -84,13 +86,12 @@
     }
 
     .payment-section {
-      page-break-inside: auto;
-      break-inside: auto;
+      page-break-before: auto;
     }
 
     .payment-list {
-      page-break-inside: auto;
-      break-inside: auto;
+      padding-left: 0;
+      list-style-type: none;
     }
 
     .payment-list li {
@@ -126,51 +127,56 @@
       margin-bottom: 10px;
     }
 
-    /* Compact styles applied ONLY during PDF generation */
-    .pdf-compact {
-      padding: 1rem !important;
+    /* Temporary class added dynamically during PDF generation */
+    .pdf-render-mode {
+      width: 790px !important;
+      max-width: 790px !important;
+      margin: 0 auto !important;
+      padding: 1.2rem !important;
+      box-sizing: border-box !important;
+      font-size: 13px !important;
     }
-    .pdf-compact h3 {
-      font-size: 1.3rem !important;
-      margin-bottom: 0.6rem !important;
-    }
-    .pdf-compact .receipt-header {
-      margin-bottom: 10px !important;
-      padding-bottom: 8px !important;
-    }
-    .pdf-compact .receipt-header h2 {
+    .pdf-render-mode h3 {
       font-size: 1.4rem !important;
+      margin-bottom: 0.8rem !important;
     }
-    .pdf-compact .section-title {
-      font-size: 1rem !important;
-      margin-top: 10px !important;
-      margin-bottom: 6px !important;
-      padding-bottom: 2px !important;
+    .pdf-render-mode .receipt-header {
+      margin-bottom: 12px !important;
+      padding-bottom: 10px !important;
     }
-    .pdf-compact .service-badge {
-      font-size: 0.85rem !important;
-      padding: 3px 6px !important;
-      margin-top: 6px !important;
-      margin-bottom: 3px !important;
+    .pdf-render-mode .receipt-header h2 {
+      font-size: 1.5rem !important;
     }
-    .pdf-compact #content p {
+    .pdf-render-mode .section-title {
+      font-size: 1.1rem !important;
+      margin-top: 15px !important;
+      margin-bottom: 8px !important;
+      padding-bottom: 3px !important;
+    }
+    .pdf-render-mode .service-badge {
       font-size: 0.9rem !important;
-      margin-bottom: 0.3rem !important;
-    }
-    .pdf-compact .description-box {
-      padding: 8px !important;
-      font-size: 0.9rem !important;
-      line-height: 1.3 !important;
-    }
-    .pdf-compact .item-line {
+      padding: 4px 8px !important;
+      margin-top: 8px !important;
       margin-bottom: 4px !important;
     }
-    .pdf-compact .item-price {
-      font-size: 0.85rem !important;
+    .pdf-render-mode #content p {
+      font-size: 1rem !important;
+      margin-bottom: 0.4rem !important;
     }
-    .pdf-compact .payment-list li {
-      font-size: 0.85rem !important;
-      margin-bottom: 3px !important;
+    .pdf-render-mode .description-box {
+      padding: 10px !important;
+      font-size: 1rem !important;
+      line-height: 1.4 !important;
+    }
+    .pdf-render-mode .item-line {
+      margin-bottom: 6px !important;
+    }
+    .pdf-render-mode .item-price {
+      font-size: 0.95rem !important;
+    }
+    .pdf-render-mode .payment-list li {
+      font-size: 0.95rem !important;
+      margin-bottom: 5px !important;
     }
   </style>
 </head>
@@ -254,7 +260,6 @@ async function loadCustomer() {
 
   let formattedDesc = "None";
   if (data.description) {
-    // Splits input by commas, newlines, or semicolons
     const segments = data.description.split(/,|\n|;/);
     
     formattedDesc = segments.map(segment => {
@@ -263,7 +268,6 @@ async function loadCustomer() {
 
       let headerHtml = '';
 
-      // Extract bracketed service tags like [wash and iron] or [iron only]
       const tagMatch = clean.match(/\[(.*?)\]/gi);
       if (tagMatch) {
         tagMatch.forEach(tag => {
@@ -275,7 +279,6 @@ async function loadCustomer() {
 
       if (!clean) return headerHtml;
 
-      // Extract item price
       const priceMatch = clean.match(/\b\d{3,}\b/);
       if (priceMatch) {
         const extractedPrice = Number(priceMatch[0]).toLocaleString();
@@ -345,7 +348,7 @@ async function loadCustomer() {
       <p><b>Total Paid:</b> <span style="color: green; font-weight: bold;">₦${totalPaid.toLocaleString()}</span></p>
       <p><b>Balance Remaining:</b> <span style="color: ${balance > 0 ? 'red' : 'green'}; font-weight: bold; font-size: 1.3rem;">₦${balance.toLocaleString()}</span></p>
 
-      <ul class="payment-list mt-3" style="list-style-type: none; padding: 0;">
+      <ul class="payment-list mt-3">
         <li><b>Payment History:</b></li>
         ${paymentsHtml}
       </ul>
@@ -353,22 +356,32 @@ async function loadCustomer() {
   `;
 }
 
-function downloadReceipt() {
+async function downloadReceipt() {
   const element = document.getElementById('receiptPrintArea');
-  element.classList.add('pdf-compact');
+  
+  // Apply desktop rendering class temporary lock
+  element.classList.add('pdf-render-mode');
 
   const opt = {
-    margin:       [0.4, 0.3, 0.4, 0.3], // Top, Left, Bottom, Right
+    margin:       [0.3, 0.3, 0.3, 0.3],
     filename:     `PastorPal_Receipt_${customerNameForPdf}.pdf`,
     image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2, useCORS: true, logging: false },
+    html2canvas:  { 
+      scale: 2, 
+      useCORS: true, 
+      logging: false,
+      windowWidth: 800 // Forces html2canvas to render as desktop resolution
+    },
     jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-    pagebreak:    { mode: ['css', 'legacy'] }
+    pagebreak:    { mode: ['css', 'legacy'], avoid: ['.item-line', 'li', '.service-badge'] }
   };
 
-  html2pdf().set(opt).from(element).save().then(() => {
-    element.classList.remove('pdf-compact');
-  });
+  try {
+    await html2pdf().set(opt).from(element).save();
+  } finally {
+    // Remove temporary class so screen layout goes back to normal responsive mobile view
+    element.classList.remove('pdf-render-mode');
+  }
 }
 
 loadCustomer();
