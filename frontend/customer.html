@@ -4,7 +4,8 @@
   <title>Customer Laundry Status</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   
   <style>
     body {
@@ -362,12 +363,16 @@ async function downloadReceipt() {
   const btn = document.getElementById('downloadPdfBtn');
   const originalLabel = btn ? btn.innerHTML : '';
 
+  if (!window.html2canvas || !window.jspdf) {
+    alert("PDF tools are still loading. Please check your internet and try again.");
+    return;
+  }
+
   if (btn) {
     btn.disabled = true;
     btn.innerHTML = '⏳ Preparing PDF...';
   }
 
-  // Make sure the page is at the top so nothing gets offset/cut when captured
   window.scrollTo(0, 0);
 
   // Apply desktop rendering class temporary lock
@@ -377,40 +382,106 @@ async function downloadReceipt() {
     // Wait for the browser to re-layout with the desktop width
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-    // Long receipts (many items / many payments) can make the captured image
-    // bigger than the browser's max canvas size, which silently chops off the
-    // bottom (the payment section). Pick a scale that always stays safe.
-    const capWidth = Math.max(element.scrollWidth, 790);
-    const capHeight = element.scrollHeight * 1.15; // safety margin
-    const MAX_AREA = 12000000; // safe for phones (iOS/Android)
-    const MAX_SIDE = 15000;
-    let scale = 2;
-    scale = Math.min(
-      scale,
-      Math.sqrt(MAX_AREA / (capWidth * capHeight)),
-      MAX_SIDE / capHeight,
-      MAX_SIDE / capWidth
-    );
-    scale = Math.max(scale, 0.6);
+    const { jsPDF } = window.jspdf;
 
-    const opt = {
-      margin:       [0.3, 0.3, 0.3, 0.3],
-      filename:     `PastorPal_Receipt_${customerNameForPdf}.pdf`,
-      image:        { type: 'jpeg', quality: 0.95 },
-      html2canvas:  { 
-        scale: scale, 
-        useCORS: true, 
+    // A4 layout (millimetres)
+    const PAGE_W = 210, PAGE_H = 297, MARGIN = 8, FOOTER = 5;
+    const contentW = PAGE_W - 2 * MARGIN;
+    const contentH = PAGE_H - 2 * MARGIN - FOOTER;
+
+    const elRect = element.getBoundingClientRect();
+    const W = elRect.width;
+    const totalH = Math.ceil(elRect.height);
+    const pxPerMm = W / contentW;
+    const pageHpx = contentH * pxPerMm; // how many screen-pixels fit on one PDF page
+
+    // Collect the blocks that must never be sliced through the middle
+    const blocks = [];
+    const leaves = element.querySelectorAll(
+      '.receipt-header, h3, #content p, #content .item-line, #content .service-badge, #content .section-title, #content .payment-list li'
+    );
+    leaves.forEach(el => {
+      const r = el.getBoundingClientRect();
+      let top = r.top - elRect.top;
+      let bottom = r.bottom - elRect.top;
+      const next = el.nextElementSibling;
+
+      // Keep headings / labels together with whatever comes right after them
+      if (next && (el.matches('.section-title, .service-badge') || el.matches('.payment-list li:first-child'))) {
+        bottom = Math.max(bottom, next.getBoundingClientRect().bottom - elRect.top);
+      }
+      if (next && el.matches('#content p') && next.classList.contains('description-box') && next.firstElementChild) {
+        bottom = Math.max(bottom, next.firstElementChild.getBoundingClientRect().bottom - elRect.top);
+      }
+      blocks.push({ top, bottom });
+    });
+
+    // Work out where each page ends: fill the page, only backing up
+    // enough to avoid cutting through a line or block
+    const pages = [];
+    let start = 0;
+    while (start < totalH - 1) {
+      let end = start + pageHpx;
+      if (end >= totalH - 1) {
+        end = totalH;
+      } else {
+        let changed = true, guard = 0;
+        while (changed && guard++ < 500) {
+          changed = false;
+          for (const b of blocks) {
+            if (b.top > start + 1 && b.top < end - 0.5 && b.bottom > end + 0.5) {
+              end = b.top;
+              changed = true;
+            }
+          }
+        }
+        // If a single block is huge, just cut at the page edge
+        if (end - start < pageHpx * 0.4) end = start + pageHpx;
+        end = Math.floor(end);
+      }
+      pages.push([Math.floor(start), end]);
+      start = end;
+    }
+
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+    // Render one page-sized slice at a time (small images = no cut-off on phones)
+    for (let i = 0; i < pages.length; i++) {
+      const [sy, ey] = pages[i];
+      if (btn) btn.innerHTML = `⏳ Preparing page ${i + 1} of ${pages.length}...`;
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
         logging: false,
+        backgroundColor: '#ffffff',
+        x: 0,
+        y: sy,
+        width: Math.ceil(W),
+        height: ey - sy,
         scrollX: 0,
         scrollY: 0,
-        windowWidth: 800 // Forces html2canvas to render as desktop resolution
-      },
-      jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-      // Long content flows onto extra pages; these items are never split in half
-      pagebreak:    { mode: ['css', 'legacy'], avoid: ['.item-line', 'li', '.service-badge', '.section-title'] }
-    };
+        windowWidth: 800 // Forces desktop resolution
+      });
 
-    await html2pdf().set(opt).from(element).save();
+      if (i > 0) pdf.addPage();
+      const imgH = contentW * (canvas.height / canvas.width);
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', MARGIN, MARGIN, contentW, imgH);
+      canvas.width = 0;
+      canvas.height = 0;
+    }
+
+    // Page numbers
+    if (pages.length > 1) {
+      for (let i = 1; i <= pages.length; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(120);
+        pdf.text(`Page ${i} of ${pages.length}`, PAGE_W / 2, PAGE_H - MARGIN + 1, { align: 'center' });
+      }
+    }
+
+    pdf.save(`PastorPal_Receipt_${customerNameForPdf}.pdf`);
   } catch (err) {
     console.error("PDF generation failed:", err);
     alert("Sorry, the receipt could not be downloaded. Please try again.");
