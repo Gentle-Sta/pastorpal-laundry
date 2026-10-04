@@ -490,16 +490,6 @@ markPaidBtn.addEventListener("click", async () => {
     console.error("Error marking collected:", err.message);
     alert("❌ Failed to mark as collected. See console for details.");
   }
-
-
-  // Inside markPaidBtn click listener:
-const updateData = { status: "Collected", pickupDate, remaining: 0 };
-
-if (!navigator.onLine) {
-  queueOfflineAction({ type: 'UPDATE_CUSTOMER', id: currentCustomerId, data: updateData });
-  collectModal.hide();
-  return;
-}
 });
 
 
@@ -727,16 +717,6 @@ document.getElementById("saveCustomerEditBtn").addEventListener("click", async (
   const totalItems = Number(document.getElementById("editTotalItems").value);
   const totalAmount = Number(document.getElementById("editTotalAmount").value);
 
-
-  // Inside saveCustomerEditBtn click listener:
-const updateData = { description, totalItems, totalAmount };
-
-if (!navigator.onLine) {
-  queueOfflineAction({ type: 'UPDATE_CUSTOMER', id, data: updateData });
-  editCustomerModal.hide();
-  return;
-}
-
   if (
     !description ||
     isNaN(totalItems) || totalItems <= 0 ||
@@ -841,16 +821,6 @@ saveClothesBtn.addEventListener("click", async () => {
   const desc = collectedDescInput.value.trim();
   const date = collectedDateInput.value || new Date().toISOString().split("T")[0];
 
-
-  // Inside saveClothesBtn click listener:
-const updateData = { clothesLog, remaining };
-
-if (!navigator.onLine) {
-  queueOfflineAction({ type: 'UPDATE_CUSTOMER', id: currentClothesCustomerId, data: updateData });
-  clothesModal.hide();
-  return;
-}
-
   if (!num || isNaN(num) || num <= 0) {
     alert("Enter valid number of clothes.");
     return;
@@ -947,16 +917,6 @@ const deleteModal = new bootstrap.Modal(
 document.getElementById("confirmDeleteBtn").addEventListener("click", async () => {
   const pass = document.getElementById("deletePasscodeInput").value;
 
-  // Inside deleteCustomer function:
-deleteAction = async () => {
-  if (!navigator.onLine) {
-    queueOfflineAction({ type: 'DELETE_CUSTOMER', id });
-    alert("✅ Customer deleted locally.");
-    return;
-  }
-  // existing Supabase delete code...
-};
-
   if (pass !== DELETE_PASSCODE) {
     alert("❌ Wrong passcode");
     return;
@@ -965,8 +925,6 @@ deleteAction = async () => {
   await deleteAction();
   deleteModal.hide();
   document.getElementById("deletePasscodeInput").value = "";
-
-  
 });
 
 function deleteCustomer(id) {
@@ -1045,8 +1003,7 @@ form.addEventListener("submit", async (e) => {
   const instruction = document.getElementById("instruction").value;
   const agreedDate = document.getElementById("agreedDate").value;
 
-
-
+  
   // 🖼️ IMAGE UPLOAD
 // const fileInput = document.getElementById("customerImage");
 // let imageUrl = null;
@@ -1119,15 +1076,6 @@ image: imageUrl  // store image URL if uploaded
     console.error("Error adding customer", err.message);
     alert("Error adding customer");
   }
-
-
-    // Inside form.addEventListener("submit"):
-if (!navigator.onLine) {
-  queueOfflineAction({ type: 'INSERT_CUSTOMER', data: newCustomer });
-  form.reset();
-  return;
-}
-
 });
 
 
@@ -1321,54 +1269,3 @@ window.addEventListener('beforeinstallprompt', (e) => {
     });
   }
 });
-
-// ==========================================
-// OFFLINE EDITS QUEUE & SYNC
-// ==========================================
-
-const OFFLINE_QUEUE_KEY = 'pastorpal_offline_queue';
-
-// Get queued actions
-function getOfflineQueue() {
-  return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
-}
-
-// Save action to queue
-function queueOfflineAction(action) {
-  const queue = getOfflineQueue();
-  queue.push(action);
-  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
-  alert('⚠️ You are offline. Your changes have been saved locally and will sync when reconnected.');
-}
-
-// Sync queue with Supabase
-async function syncOfflineQueue() {
-  if (!navigator.onLine) return;
-  const queue = getOfflineQueue();
-  if (queue.length === 0) return;
-
-  console.log('🔄 Syncing offline changes to Supabase...');
-
-  for (const item of queue) {
-    try {
-      if (item.type === 'INSERT_CUSTOMER') {
-        await supabase.from('customers').insert([item.data]);
-      } else if (item.type === 'UPDATE_CUSTOMER') {
-        await supabase.from('customers').update(item.data).eq('id', item.id);
-      } else if (item.type === 'DELETE_CUSTOMER') {
-        await supabase.from('customers').delete().eq('id', item.id);
-      }
-    } catch (err) {
-      console.error('Failed to sync offline item:', item, err);
-    }
-  }
-
-  // Clear queue and reload
-  localStorage.removeItem(OFFLINE_QUEUE_KEY);
-  alert('✅ Offline edits synced successfully!');
-  loadCustomers();
-}
-
-// Listen for network reconnect
-window.addEventListener('online', syncOfflineQueue);
-window.addEventListener('load', syncOfflineQueue);
