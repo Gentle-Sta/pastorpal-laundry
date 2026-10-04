@@ -39,9 +39,24 @@ self.addEventListener('activate', (event) => {
 
 // Fetch Event (Network First Strategy with Cache Fallback)
 self.addEventListener('fetch', (event) => {
+  // Only intercept GET requests (ignore POST/PUT/DELETE calls to Supabase)
+  if (event.request.method !== 'GET') return;
+
   event.respondWith(
-    fetch(event.request).catch(() => {
-      return caches.match(event.request);
-    })
+    fetch(event.request)
+      .then((response) => {
+        // Clone and store fresh copies of static GET resources into cache
+        if (response.status === 200 && event.request.url.startsWith('http')) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return response;
+      })
+      .catch(() => {
+        // Fallback to cached version if network fails
+        return caches.match(event.request);
+      })
   );
 });
