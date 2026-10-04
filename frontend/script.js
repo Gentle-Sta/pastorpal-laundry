@@ -1045,12 +1045,7 @@ form.addEventListener("submit", async (e) => {
   const instruction = document.getElementById("instruction").value;
   const agreedDate = document.getElementById("agreedDate").value;
 
-  // Inside form.addEventListener("submit"):
-if (!navigator.onLine) {
-  queueOfflineAction({ type: 'INSERT_CUSTOMER', data: newCustomer });
-  form.reset();
-  return;
-}
+
 
   // 🖼️ IMAGE UPLOAD
 // const fileInput = document.getElementById("customerImage");
@@ -1124,6 +1119,15 @@ image: imageUrl  // store image URL if uploaded
     console.error("Error adding customer", err.message);
     alert("Error adding customer");
   }
+
+
+    // Inside form.addEventListener("submit"):
+if (!navigator.onLine) {
+  queueOfflineAction({ type: 'INSERT_CUSTOMER', data: newCustomer });
+  form.reset();
+  return;
+}
+
 });
 
 
