@@ -554,6 +554,8 @@ multiImageInput.addEventListener("change", async () => {
   } catch (err) {
     console.error("Image upload failed:", err);
     alert("❌ Failed to upload images. See console.");
+  } finally {
+    multiImageInput.value = "";
   }
 });
 
@@ -1028,6 +1030,11 @@ tableBody.addEventListener("click", function (e) {
     collectedDescInput.value = "";
     collectedDateInput.value = new Date().toISOString().split("T")[0];
     clothesModal.show();
+    return;
+  }
+  if (btn.classList.contains("images-btn")) {
+    currentImageCustomerId = id;
+    openImagesModal(id);
     return;
   }
   if (btn.dataset.action === "collect") {
