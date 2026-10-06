@@ -664,7 +664,29 @@ document.getElementById("saveCustomerEditBtn").addEventListener("click", async (
     return;
   }
 
-  const updateData = { description, totalItems, totalAmount };
+  // Work out the new "remaining clothes" from the clothes already collected
+  let existingLog = [];
+  try {
+    if (navigator.onLine) {
+      const { data: current, error: fetchError } = await supabase
+        .from("customers")
+        .select("clothesLog")
+        .eq("id", id)
+        .single();
+      if (fetchError) throw fetchError;
+      existingLog = safeParseJSON(current && current.clothesLog, []);
+    } else {
+      throw new Error("offline");
+    }
+  } catch (e) {
+    const cachedList = JSON.parse(localStorage.getItem('cached_customers') || '[]');
+    const cachedCustomer = cachedList.find(c => c.id == id);
+    existingLog = safeParseJSON(cachedCustomer && cachedCustomer.clothesLog, []);
+  }
+  const totalCollected = existingLog.reduce((sum, log) => sum + (Number(log.num) || 0), 0);
+  const remaining = Math.max(totalItems - totalCollected, 0);
+
+  const updateData = { description, totalItems, totalAmount, remaining };
 
   if (!navigator.onLine) {
     queueOfflineAction({ type: 'UPDATE_CUSTOMER', id, data: updateData });
