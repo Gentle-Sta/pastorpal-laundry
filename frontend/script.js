@@ -83,13 +83,12 @@ const clearSearchBtn = document.getElementById("clearSearchBtn");
 
 let currentImageCustomerId = null;
 
-
 let currentCustomerId = null;
 let currentPaymentCustomerId = null;
 let currentWhatsappPhone = null;
 let currentWhatsappName = null;
 
-// ✅ Utility: safely parse JSON or return fallback
+// Utility: safely parse JSON or return fallback
 function safeParseJSON(value, fallback = []) {
   if (Array.isArray(value)) return value;
   if (!value) return fallback;
@@ -107,15 +106,22 @@ function escapeHtml(str) {
   return String(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// LOAD and render rows
-// LOAD CUSTOMERS
+// LOAD CUSTOMERS WITH OFFLINE CACHE
 async function loadCustomers() {
   try {
-    const { data: customers, error } = await supabase
-    .from('customers')
-    .select('*');
+    let customers = [];
+    if (navigator.onLine) {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*');
 
-    if (error) throw error;
+      if (error) throw error;
+      customers = data;
+      localStorage.setItem('cached_customers', JSON.stringify(customers));
+    } else {
+      const cached = localStorage.getItem('cached_customers');
+      customers = cached ? JSON.parse(cached) : [];
+    }
 
     const filter = searchInput.value.trim().toLowerCase();
     let filtered = customers;
@@ -128,7 +134,7 @@ async function loadCustomers() {
       );
     }
 
-    renderSmartSummary(customers); // This feeds the data to the summary box
+    renderSmartSummary(customers);
     tableBody.innerHTML = "";
     filtered.forEach(c => {
       const dateStamp = c.date || new Date().toLocaleString();
@@ -206,39 +212,33 @@ async function loadCustomers() {
   }
 }
 
-
-
-
-
-
-
-
-
 // Show / hide X when typing
 searchInput.addEventListener("input", () => {
   clearSearchBtn.style.display = searchInput.value ? "block" : "none";
-  loadCustomers(); // already filters your table
+  loadCustomers();
 });
 
 // Clear search when X is clicked
 clearSearchBtn.addEventListener("click", () => {
   searchInput.value = "";
   clearSearchBtn.style.display = "none";
-  loadCustomers(); // reload full table
+  loadCustomers();
 });
 
-
-
-
-
-
-
-// VIEW DETAILS (UPDATED WITH PRICE REMOVAL FROM TEXT LINE)
+// VIEW DETAILS (WITH OFFLINE SUPPORT)
 async function viewDetails(id) {
   try {
-    const { data, error } = await supabase.from("customers").select("*").eq("id", id).single();
-    if (error) throw error;
-    const c = data;
+    let c;
+    if (navigator.onLine) {
+      const { data, error } = await supabase.from("customers").select("*").eq("id", id).single();
+      if (error) throw error;
+      c = data;
+    } else {
+      const cached = JSON.parse(localStorage.getItem('cached_customers') || '[]');
+      c = cached.find(item => item.id == id);
+    }
+
+    if (!c) throw new Error("Customer record not available offline.");
 
     const payments = safeParseJSON(c.payments, []);
     const clothes = safeParseJSON(c.clothesLog, []);
@@ -308,11 +308,9 @@ async function viewDetails(id) {
     modal.show();
   } catch (err) {
     console.error("Error viewing customer", err.message);
-    alert("Failed to load customer details (see console).");
+    alert(err.message || "Failed to load customer details.");
   }
 }
-
-
 
 modalBody.addEventListener("click", async (e) => {
   const editBtn = e.target.closest(".edit-clothes-btn");
@@ -323,40 +321,41 @@ modalBody.addEventListener("click", async (e) => {
   const customerId = e.target.dataset.id;
   const index = Number(e.target.dataset.index);
 
-  // fetch customer
-  const { data: customer, error } = await supabase
-    .from("customers")
-    .select("*")
-    .eq("id", customerId)
-    .single();
+  let customer;
+  let clothesLog = [];
 
-  if (error) {
-    alert("Failed to load customer");
-    return;
+  if (navigator.onLine) {
+    const { data, error } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("id", customerId)
+      .single();
+
+    if (error) {
+      alert("Failed to load customer");
+      return;
+    }
+    customer = data;
+  } else {
+    const cached = JSON.parse(localStorage.getItem('cached_customers') || '[]');
+    customer = cached.find(c => c.id == customerId);
   }
 
-  let clothesLog = safeParseJSON(customer.clothesLog, []);
+  clothesLog = safeParseJSON(customer.clothesLog, []);
 
-  /* =========================
-     ✏️ EDIT CLOTHES LOG
-  ========================== */
+  /* EDIT CLOTHES LOG */
   if (editBtn) {
     const oldNum = Number(clothesLog[index].num);
     const oldDesc = clothesLog[index].desc;
   
-    const newNum = Number(
-      prompt("Update number of clothes:", oldNum)
-    );
+    const newNum = Number(prompt("Update number of clothes:", oldNum));
   
     if (!newNum || isNaN(newNum) || newNum <= 0) {
       alert("❌ Invalid number of clothes");
       return;
     }
   
-    const newDesc = prompt(
-      "Update description:",
-      oldDesc
-    );
+    const newDesc = prompt("Update description:", oldDesc);
   
     if (!newDesc || newDesc.trim() === "") {
       alert("❌ Description cannot be empty");
@@ -366,16 +365,22 @@ modalBody.addEventListener("click", async (e) => {
     clothesLog[index].num = newNum;
     clothesLog[index].desc = newDesc.trim();
   
-    const totalCollected = clothesLog.reduce(
-      (sum, log) => sum + Number(log.num || 0),
-      0
-    );
-  
+    const totalCollected = clothesLog.reduce((sum, log) => sum + Number(log.num || 0), 0);
     const remaining = (customer.totalItems || 0) - totalCollected;
+
+    const updateData = { clothesLog, remaining };
+
+    if (!navigator.onLine) {
+      queueOfflineAction({ type: 'UPDATE_CUSTOMER', id: customerId, data: updateData });
+      updateLocalCache(customerId, updateData);
+      modal.hide();
+      loadCustomers();
+      return;
+    }
   
     const { error: updateError } = await supabase
       .from("customers")
-      .update({ clothesLog, remaining })
+      .update(updateData)
       .eq("id", customerId);
   
     if (updateError) {
@@ -389,13 +394,9 @@ modalBody.addEventListener("click", async (e) => {
     return;
   }
   
-  /* =========================
-     🗑️ DELETE CLOTHES LOG
-  ========================== */
+  /* DELETE CLOTHES LOG */
   if (deleteBtn) {
-    const enteredCode = prompt(
-      "Enter passcode to delete this clothes log:"
-    );
+    const enteredCode = prompt("Enter passcode to delete this clothes log:");
   
     if (!enteredCode) {
       alert("❌ Deletion cancelled");
@@ -409,16 +410,22 @@ modalBody.addEventListener("click", async (e) => {
   
     clothesLog.splice(index, 1);
   
-    const totalCollected = clothesLog.reduce(
-      (sum, log) => sum + Number(log.num || 0),
-      0
-    );
-  
+    const totalCollected = clothesLog.reduce((sum, log) => sum + Number(log.num || 0), 0);
     const remaining = (customer.totalItems || 0) - totalCollected;
+
+    const updateData = { clothesLog, remaining };
+
+    if (!navigator.onLine) {
+      queueOfflineAction({ type: 'UPDATE_CUSTOMER', id: customerId, data: updateData });
+      updateLocalCache(customerId, updateData);
+      modal.hide();
+      loadCustomers();
+      return;
+    }
   
     const { error: deleteError } = await supabase
       .from("customers")
-      .update({ clothesLog, remaining })
+      .update(updateData)
       .eq("id", customerId);
   
     if (deleteError) {
@@ -430,10 +437,7 @@ modalBody.addEventListener("click", async (e) => {
     modal.hide();
     loadCustomers();
   }
-  
 });
-
-
 
 // IMAGE HELPER FUNCTIONS
 function toggleImage() {
@@ -445,10 +449,6 @@ function openFullImage(url) {
   window.open(url, "_blank");
 }
 
-
-
-
-
 // COLLECT MODAL
 function openCollectModal(id) {
   currentCustomerId = id;
@@ -456,7 +456,6 @@ function openCollectModal(id) {
   collectModal.show();
 }
 
-// HANDLE MARK COLLECTED CONFIRMATION
 // HANDLE MARK COLLECTED CONFIRMATION
 markPaidBtn.addEventListener("click", async () => {
   if (!currentCustomerId) {
@@ -470,55 +469,46 @@ markPaidBtn.addEventListener("click", async () => {
     return;
   }
 
+  const updateData = {
+    status: "Collected",
+    pickupDate: pickupDate,
+    remaining: 0
+  };
+
+  if (!navigator.onLine) {
+    queueOfflineAction({ type: 'UPDATE_CUSTOMER', id: currentCustomerId, data: updateData });
+    updateLocalCache(currentCustomerId, updateData);
+    collectModal.hide();
+    loadCustomers();
+    return;
+  }
+
   try {
-    // Update the selected customer
     const { error } = await supabase
       .from("customers")
-      .update({
-        status: "Collected",
-        pickupDate: pickupDate,
-        remaining: 0 // ✅ set remaining clothes to 0
-      })
+      .update(updateData)
       .eq("id", currentCustomerId);
 
     if (error) throw error;
 
     alert("✅ Customer marked as collected successfully!");
     collectModal.hide();
-    loadCustomers(); // refresh table so view modal updates
+    loadCustomers();
   } catch (err) {
     console.error("Error marking collected:", err.message);
     alert("❌ Failed to mark as collected. See console for details.");
   }
 });
 
-
-// MARK collected
-// ✅ Fix: Mark as collected button
-tableBody.addEventListener("click", async (e) => {
-  const btn = e.target.closest("button");
-  if (!btn) return;
-
-  const id = btn.dataset.id;
-  const action = btn.dataset.action;
-
-  if (btn.classList.contains("view-btn")) {
-    viewDetails(id);
-  }
-
-  if (btn.classList.contains("images-btn")) {
-    currentImageCustomerId = id;
-    openImagesModal(id);
-  }
-  
-
-  
-});
-
-
+// MULTI-IMAGE INPUT
 multiImageInput.addEventListener("change", async () => {
   const files = Array.from(multiImageInput.files);
   if (!files.length) return;
+
+  if (!navigator.onLine) {
+    alert("⚠️ Image upload requires an active internet connection.");
+    return;
+  }
 
   if (files.length > 100) {
     alert("You Can Upload More Images but You Have Reached Your Limit Of 100 images allowed");
@@ -526,7 +516,6 @@ multiImageInput.addEventListener("change", async () => {
   }
 
   try {
-    // Upload all images in parallel
     const uploadPromises = files.map(async (file) => {
       const filePath = `public/${Date.now()}_${file.name}`;
       const { data, error } = await supabase.storage
@@ -545,9 +534,8 @@ multiImageInput.addEventListener("change", async () => {
       return publicData.publicUrl;
     });
 
-    const uploadedUrls = await Promise.all(uploadPromises); // Wait for all uploads
+    const uploadedUrls = await Promise.all(uploadPromises);
 
-    // Save to DB
     const { data: customer } = await supabase
       .from("customers")
       .select("image_urls")
@@ -569,80 +557,28 @@ multiImageInput.addEventListener("change", async () => {
   }
 });
 
-
-// multiImageInput.addEventListener("change", async () => {
-//   const files = Array.from(multiImageInput.files);
-//   if (!files.length) return;
-
-//   if (files.length > 100) {
-//     alert("Maximum 100 images allowed");
-//     return;
-//   }
-
-//   const uploadedUrls = [];
-
-//   for (const file of files) {
-//     const filePath = `public/${Date.now()}_${file.name}`;
-
-//     const { data, error } = await supabase.storage
-//       .from("customer-images")
-//       .upload(filePath, file);
-
-//     if (error) {
-//       alert("Upload failed");
-//       return;
-//     }
-
-//     const { data: publicData, error: urlError } = supabase
-//   .storage
-//   .from("customer-images")
-//   .getPublicUrl(data.path);
-
-// if (urlError) {
-//   console.error("Failed to get public URL:", urlError.message);
-// } else {
-//   uploadedUrls.push(publicData.publicUrl);
-// }
-
-//   }
-
-//   // save to DB
-//   const { data: customer } = await supabase
-//     .from("customers")
-//     .select("image_urls")
-//     .eq("id", currentImageCustomerId)
-//     .single();
-
-//   const existing = safeParseJSON(customer.image_urls, []);
-//   const updated = [...existing, ...uploadedUrls];
-
-//   await supabase
-//     .from("customers")
-//     .update({ image_urls: updated })
-//     .eq("id", currentImageCustomerId);
-
-//   openImagesModal(currentImageCustomerId);
-// });
-
-
-
-
-// load images modal
+// LOAD IMAGES MODAL
 async function openImagesModal(customerId) {
   gallery.innerHTML = "";
 
-  const { data, error } = await supabase
-    .from("customers")
-    .select("image_urls")
-    .eq("id", customerId)
-    .single();
+  let images = [];
+  if (navigator.onLine) {
+    const { data, error } = await supabase
+      .from("customers")
+      .select("image_urls")
+      .eq("id", customerId)
+      .single();
 
-  if (error) {
-    alert("Failed to load images");
-    return;
+    if (error) {
+      alert("Failed to load images");
+      return;
+    }
+    images = safeParseJSON(data.image_urls, []);
+  } else {
+    const cached = JSON.parse(localStorage.getItem('cached_customers') || '[]');
+    const customer = cached.find(c => c.id == customerId);
+    images = customer ? safeParseJSON(customer.image_urls, []) : [];
   }
-
-  const images = safeParseJSON(data.image_urls, []);
 
   if (images.length === 0) {
     gallery.innerHTML = `
@@ -660,15 +596,13 @@ async function openImagesModal(customerId) {
         <button class="btn btn-sm btn-danger mt-1 remove-img-btn">Remove</button>
       `;
 
-      // Preview image on click
       col.querySelector("img").onclick = () => {
         previewImage.src = url;
         imagePreviewModal.show();
       };
 
-      // Remove button
       col.querySelector(".remove-img-btn").onclick = async () => {
-        const passcode = "1234"; // ✅ hardcoded passcode
+        const passcode = "1234";
         const input = prompt("Enter passcode to remove this image:");
 
         if (input !== passcode) {
@@ -676,10 +610,16 @@ async function openImagesModal(customerId) {
           return;
         }
 
-        // Remove image from array
         images.splice(index, 1);
 
-        // Update Supabase
+        if (!navigator.onLine) {
+          queueOfflineAction({ type: 'UPDATE_CUSTOMER', id: customerId, data: { image_urls: images } });
+          updateLocalCache(customerId, { image_urls: images });
+          alert("✅ Image removed locally.");
+          openImagesModal(customerId);
+          return;
+        }
+
         const { error: updateError } = await supabase
           .from("customers")
           .update({ image_urls: images })
@@ -692,7 +632,7 @@ async function openImagesModal(customerId) {
         }
 
         alert("✅ Image removed successfully!");
-        openImagesModal(customerId); // refresh modal
+        openImagesModal(customerId);
       };
 
       gallery.appendChild(col);
@@ -702,17 +642,13 @@ async function openImagesModal(customerId) {
   imagesModal.show();
 }
 
-
-
-//EDIT CUSTOMER
-
+// EDIT CUSTOMER MODAL
 const editCustomerModal = new bootstrap.Modal(
   document.getElementById("editCustomerModal")
 );
 
 document.getElementById("saveCustomerEditBtn").addEventListener("click", async () => {
   const id = document.getElementById("editCustomerId").value;
-
   const description = document.getElementById("editDescription").value.trim();
   const totalItems = Number(document.getElementById("editTotalItems").value);
   const totalAmount = Number(document.getElementById("editTotalAmount").value);
@@ -725,11 +661,20 @@ document.getElementById("saveCustomerEditBtn").addEventListener("click", async (
     alert("❌ Please fill all fields correctly");
     return;
   }
-  
+
+  const updateData = { description, totalItems, totalAmount };
+
+  if (!navigator.onLine) {
+    queueOfflineAction({ type: 'UPDATE_CUSTOMER', id, data: updateData });
+    updateLocalCache(id, updateData);
+    editCustomerModal.hide();
+    loadCustomers();
+    return;
+  }
 
   const { error } = await supabase
     .from("customers")
-    .update({ description, totalItems, totalAmount })
+    .update(updateData)
     .eq("id", id);
 
   if (error) {
@@ -743,69 +688,33 @@ document.getElementById("saveCustomerEditBtn").addEventListener("click", async (
 });
 
 async function editCustomer(id) {
-  const { data } = await supabase
-    .from("customers")
-    .select("*")
-    .eq("id", id)
-    .single();
+  let data;
+  if (navigator.onLine) {
+    const res = await supabase
+      .from("customers")
+      .select("*")
+      .eq("id", id)
+      .single();
+    data = res.data;
+  } else {
+    const cached = JSON.parse(localStorage.getItem('cached_customers') || '[]');
+    data = cached.find(c => c.id == id);
+  }
+
+  if (!data) {
+    alert("Customer details not found offline.");
+    return;
+  }
 
   document.getElementById("editCustomerId").value = id;
-  document.getElementById("editDescription").value = data.description;
-  document.getElementById("editTotalItems").value = data.totalItems;
-  document.getElementById("editTotalAmount").value = data.totalAmount;
+  document.getElementById("editDescription").value = data.description || '';
+  document.getElementById("editTotalItems").value = data.totalItems || '';
+  document.getElementById("editTotalAmount").value = data.totalAmount || '';
 
   editCustomerModal.show();
 }
 
-
-
-
-
-
-// async function editCustomer(id) {
-//   try {
-//     const {data:customer, error:fetchError} = await supabase
-//     .from("customers")
-//     .select("*")
-//     .eq("id", id)
-//     .single();
-
-//     if (fetchError) throw new Error("Failed to fetch customer");
-
-//     const newDescription = prompt("Update description:",customer.description);
-//     if (newDescription === null) return;
-
-//     const newTotalItems = Number(prompt("Update Total Items:", customer.totalItems));
-//     if (isNaN(newTotalItems)) {
-//       alert("Invalid number for Total Items.");
-//       return;
-//     }
-
-//     const newTotalAmount = Number(prompt("Update Total Amount:", customer.totalAmount));
-//     if (isNaN(newTotalAmount)) {
-//       alert("Invalid number for Total Amount.");
-//       return;
-//     }
-
-//     const {error:updateError} = await supabase
-//     .from("customers")
-//     .update({
-//       description:newDescription,
-//       totalItems:newTotalItems,
-//       totalAmount:newTotalAmount})
-//     .eq("id", id);
-
-//     if (updateError) throw updateError;
-
-//     alert("Customer updated SUCCESSFULLY!.");
-//     loadCustomers();
-//   }catch(err){
-//     console.error("Edit customer error:", err);
-//     alert("Could not edit customer (see console).");
-//   }
-// }
-
-//OPEN PAYMENT MODAL
+// OPEN PAYMENT MODAL
 function openPaymentModal(id) {
   currentPaymentCustomerId = id;
   document.getElementById("paymentMethod").value = "";
@@ -814,7 +723,7 @@ function openPaymentModal(id) {
   paymentModal.show();
 }
 
-//SAVE CLOTHES
+// SAVE CLOTHES
 saveClothesBtn.addEventListener("click", async () => {
   if (!currentClothesCustomerId) return;
   const num = Number(collectedItemsInput.value);
@@ -827,24 +736,39 @@ saveClothesBtn.addEventListener("click", async () => {
   }
 
   try {
-    const { data: customer, error: fetchError } = await supabase
-      .from("customers")
-      .select("*")
-      .eq("id", currentClothesCustomerId)
-      .single();
+    let customer;
+    if (navigator.onLine) {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .eq("id", currentClothesCustomerId)
+        .single();
+      if (error) throw error;
+      customer = data;
+    } else {
+      const cached = JSON.parse(localStorage.getItem('cached_customers') || '[]');
+      customer = cached.find(c => c.id == currentClothesCustomerId);
+    }
 
-    if (fetchError) throw fetchError;
-
-    // ✅ Parse safely in case Supabase returns text
     let clothesLog = safeParseJSON(customer.clothesLog, []);
     clothesLog.push({ num, desc, date });
 
     const totalCollected = clothesLog.reduce((s, l) => s + (Number(l.num) || 0), 0);
     const remaining = (customer.totalItems || 0) - totalCollected;
 
+    const updateData = { clothesLog, remaining };
+
+    if (!navigator.onLine) {
+      queueOfflineAction({ type: 'UPDATE_CUSTOMER', id: currentClothesCustomerId, data: updateData });
+      updateLocalCache(currentClothesCustomerId, updateData);
+      clothesModal.hide();
+      loadCustomers();
+      return;
+    }
+
     const { error: updateError } = await supabase
       .from("customers")
-      .update({ clothesLog, remaining })
+      .update(updateData)
       .eq("id", currentClothesCustomerId);
 
     if (updateError) throw updateError;
@@ -858,8 +782,7 @@ saveClothesBtn.addEventListener("click", async () => {
   }
 });
 
-
-//SAVE PAYMENT
+// SAVE PAYMENT
 savePaymentBtn.addEventListener("click", async () => {
   if (!currentPaymentCustomerId) {
     alert("No customer selected for payment.");
@@ -875,25 +798,42 @@ savePaymentBtn.addEventListener("click", async () => {
   }
 
   try {
-    const {data:customer, error:fetchError} = await supabase
-    .from("customers")
-    .select("*")
-    .eq("id", currentPaymentCustomerId)
-    .single();
+    let customer;
+    if (navigator.onLine) {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .eq("id", currentPaymentCustomerId)
+        .single();
+      if (error) throw error;
+      customer = data;
+    } else {
+      const cached = JSON.parse(localStorage.getItem('cached_customers') || '[]');
+      customer = cached.find(c => c.id == currentPaymentCustomerId);
+    }
 
-    if (fetchError) throw fetchError;
     if (!customer) throw new Error("Customer not found");
 
-    customer.payments = customer.payments || [];
-    customer.payments.push({ method, amount, date });
+    const payments = safeParseJSON(customer.payments, []);
+    payments.push({ method, amount, date });
 
-    const totalPaid = (customer.payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    const totalPaid = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
     const paidFlag = (customer.totalAmount && !isNaN(customer.totalAmount)) ? (totalPaid >= Number(customer.totalAmount)) : totalPaid > 0;
 
-    const {error:updateError} = await supabase
-    .from("customers")
-    .update({ payments: customer.payments, paid: paidFlag })
-    .eq("id", currentPaymentCustomerId);
+    const updateData = { payments, paid: paidFlag };
+
+    if (!navigator.onLine) {
+      queueOfflineAction({ type: 'UPDATE_CUSTOMER', id: currentPaymentCustomerId, data: updateData });
+      updateLocalCache(currentPaymentCustomerId, updateData);
+      paymentModal.hide();
+      loadCustomers();
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from("customers")
+      .update(updateData)
+      .eq("id", currentPaymentCustomerId);
 
     if (updateError) throw updateError;
 
@@ -907,7 +847,6 @@ savePaymentBtn.addEventListener("click", async () => {
 });
 
 // DELETE CUSTOMER
-
 let deleteAction = null;
 
 const deleteModal = new bootstrap.Modal(
@@ -922,7 +861,7 @@ document.getElementById("confirmDeleteBtn").addEventListener("click", async () =
     return;
   }
 
-  await deleteAction();
+  if (deleteAction) await deleteAction();
   deleteModal.hide();
   document.getElementById("deletePasscodeInput").value = "";
 });
@@ -932,6 +871,16 @@ function deleteCustomer(id) {
     "Are you sure you want to delete this customer?";
 
   deleteAction = async () => {
+    if (!navigator.onLine) {
+      queueOfflineAction({ type: 'DELETE_CUSTOMER', id });
+      let cached = JSON.parse(localStorage.getItem('cached_customers') || '[]');
+      cached = cached.filter(c => c.id != id);
+      localStorage.setItem('cached_customers', JSON.stringify(cached));
+      alert("✅ Customer deleted locally.");
+      loadCustomers();
+      return;
+    }
+
     const { error } = await supabase
       .from("customers")
       .delete()
@@ -949,7 +898,7 @@ function deleteCustomer(id) {
   deleteModal.show();
 }
 
-// navigation
+// Navigation helpers
 function jumpTop() {
   document.activeElement.scrollTop = 0;
 }
@@ -968,30 +917,6 @@ document.addEventListener("keydown", e => {
   }
 });
 
-
-// async function deleteCustomer(id) {
-//   const passcode = "1234"; 
-//   const input = prompt("Enter passcode to delete this customer:");
-//   if (input === passcode) {
-//     try {
-//       const {error} = await supabase
-//       .from('customers')
-//       .delete()
-//       .eq('id', id);
-
-//       if (error) throw error;
-      
-//       alert("✅ Customer deleted successfully!");
-//       loadCustomers();
-//     } catch (err) {
-//       console.error("Delete failed:", err);
-//       alert("Delete failed (see console).");
-//     }
-//   } else {
-//     alert("❌ Incorrect passcode. Customer not deleted.");
-//   }
-// }
-
 // ADD NEW CUSTOMER
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -1003,64 +928,61 @@ form.addEventListener("submit", async (e) => {
   const instruction = document.getElementById("instruction").value;
   const agreedDate = document.getElementById("agreedDate").value;
 
-  
-  // 🖼️ IMAGE UPLOAD
-// const fileInput = document.getElementById("customerImage");
-// let imageUrl = null;
-
-// if (fileInput.files.length > 0) {
   const fileInput = document.getElementById("customerImage");
   let imageUrl = null;
-  
-  if (fileInput && fileInput.files && fileInput.files.length > 0) {
-  
-  const file = fileInput.files[0];
 
-  const filePath = `public/${Date.now()}_${file.name}`;
+  if (navigator.onLine && fileInput && fileInput.files && fileInput.files.length > 0) {
+    const file = fileInput.files[0];
+    const filePath = `public/${Date.now()}_${file.name}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from("customer-images")
-    .upload(filePath, file);
+    const { error: uploadError } = await supabase.storage
+      .from("customer-images")
+      .upload(filePath, file);
 
-  if (uploadError) {
-    console.error("Image upload error:", uploadError.message);
-    alert("Failed to upload image");
-    return;
+    if (uploadError) {
+      console.error("Image upload error:", uploadError.message);
+      alert("Failed to upload image");
+      return;
+    }
+
+    const { data: publicData, error: urlError } = supabase
+      .storage
+      .from("customer-images")
+      .getPublicUrl(filePath);
+
+    if (!urlError) {
+      imageUrl = publicData.publicUrl;
+    }
   }
 
-  const { data: publicData, error: urlError } = supabase
-  .storage
-  .from("customer-images")
-  .getPublicUrl(filePath);
-
-if (urlError) {
-  console.error("Failed to get public URL:", urlError.message);
-} else {
-  imageUrl = publicData.publicUrl;
-}
-
-}
-
-
-  
-
   const newCustomer = {
-  date: new Date().toISOString(),
-  name,
-  phone,
-  description,
-  totalItems,
-  totalAmount,
-  instruction,
-  agreedDate,
-  status: "Pending",
-  paid: false,
-  overdue: false,
-  payments: [],
-  clothesLog: [],  // helpful for later
-  remaining: totalItems,  // ✅ Set remaining equal to total clothes at start
-image: imageUrl  // store image URL if uploaded
-};
+    id: Date.now(),
+    date: new Date().toISOString(),
+    name,
+    phone,
+    description,
+    totalItems,
+    totalAmount,
+    instruction,
+    agreedDate,
+    status: "Pending",
+    paid: false,
+    overdue: false,
+    payments: [],
+    clothesLog: [],
+    remaining: totalItems,
+    image: imageUrl
+  };
+
+  if (!navigator.onLine) {
+    queueOfflineAction({ type: 'INSERT_CUSTOMER', data: newCustomer });
+    const cached = JSON.parse(localStorage.getItem('cached_customers') || '[]');
+    cached.unshift(newCustomer);
+    localStorage.setItem('cached_customers', JSON.stringify(cached));
+    form.reset();
+    loadCustomers();
+    return;
+  }
 
   try {
     const { data, error } = await supabase
@@ -1071,13 +993,12 @@ image: imageUrl  // store image URL if uploaded
 
     form.reset();
     alert("Customer added SUCCESSFULLY!");
-    loadCustomers(); // optional: reload table immediately
+    loadCustomers();
   } catch (err) {
     console.error("Error adding customer", err.message);
     alert("Error adding customer");
   }
 });
-
 
 // TABLE CLICK HANDLER
 tableBody.addEventListener("click", function (e) {
@@ -1127,13 +1048,13 @@ tableBody.addEventListener("click", function (e) {
   }
 
   // SEND MENU
-if (btn.classList.contains("send-menu-btn")) {
-  const phone = btn.dataset.phone;
-  const name = btn.dataset.name;
+  if (btn.classList.contains("send-menu-btn")) {
+    const phone = btn.dataset.phone;
+    const name = btn.dataset.name;
 
-  const link = `https://pastorpal-laundry.pages.dev/customer.html?id=${id}`;
+    const link = `https://pastorpal-laundry.pages.dev/customer.html?id=${id}`;
 
-const message = `Good day ${name} 👋
+    const message = `Good day ${name} 👋
 
 This is PASTOR PAL Laundry 🧺
 
@@ -1143,23 +1064,23 @@ Check and DOWNLOAD your laundry status anytime here:
 
 Thank you 🙏`;
 
-  openWhatsApp(phone, message);
-}
+    openWhatsApp(phone, message);
+  }
 
-// SEND STATUS
-if (btn.classList.contains("send-status-btn")) {
-  sendCustomerData(id, "status");
-}
+  // SEND STATUS
+  if (btn.classList.contains("send-status-btn")) {
+    sendCustomerData(id, "status");
+  }
 
-// SEND AMOUNT
-if (btn.classList.contains("send-amount-btn")) {
-  sendCustomerData(id, "amount");
-}
+  // SEND AMOUNT
+  if (btn.classList.contains("send-amount-btn")) {
+    sendCustomerData(id, "amount");
+  }
 
-// SEND RECORD
-if (btn.classList.contains("send-record-btn")) {
-  sendCustomerData(id, "record");
-}
+  // SEND RECORD
+  if (btn.classList.contains("send-record-btn")) {
+    sendCustomerData(id, "record");
+  }
 });
 
 // WHATSAPP MODAL LOGIC
@@ -1189,27 +1110,35 @@ sendWhatsappBtn.addEventListener("click", () => {
     }
     else if (type === "4") message = `Hello ${currentWhatsappName}, this is a reminder that your laundry is ready and overdue for pickup. Kindly collect it soon.`;
 
-    // open WhatsApp Web
     const url = `https://wa.me/${currentWhatsappPhone.replace(/\D/g,'')}?text=${encodeURIComponent(message)}`;
     window.open(url, "_blank");
     whatsappModal.hide();
 });
 
-// SEARCH INPUT
-searchInput.addEventListener("input", loadCustomers);
-
 // INITIAL LOAD
 loadCustomers();
 
 async function sendCustomerData(id, type) {
-  const { data: c, error } = await supabase
-    .from("customers")
-    .select("*")
-    .eq("id", id)
-    .single();
+  let c;
+  if (navigator.onLine) {
+    const { data, error } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-  if (error) {
-    alert("Error fetching customer");
+    if (error) {
+      alert("Error fetching customer");
+      return;
+    }
+    c = data;
+  } else {
+    const cached = JSON.parse(localStorage.getItem('cached_customers') || '[]');
+    c = cached.find(item => item.id == id);
+  }
+
+  if (!c) {
+    alert("Customer details not found.");
     return;
   }
 
@@ -1242,17 +1171,13 @@ function openWhatsApp(phone, message) {
   window.open(url, "_blank");
 }
 
-
-
 let deferredPrompt;
 const installBtn = document.getElementById('pwaInstallBtn');
 
 window.addEventListener('beforeinstallprompt', (e) => {
-  // Prevent default Chrome install banner
   e.preventDefault();
   deferredPrompt = e;
   
-  // Show custom install button
   if (installBtn) {
     installBtn.classList.remove('d-none');
     
@@ -1269,3 +1194,61 @@ window.addEventListener('beforeinstallprompt', (e) => {
     });
   }
 });
+
+// ==========================================
+// OFFLINE EDITS QUEUE & SYNC ENGINE
+// ==========================================
+
+const OFFLINE_QUEUE_KEY = 'pastorpal_offline_queue';
+
+function getOfflineQueue() {
+  return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
+}
+
+function queueOfflineAction(action) {
+  const queue = getOfflineQueue();
+  queue.push(action);
+  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+  alert('⚠️ You are offline. Your changes have been saved locally and will sync when reconnected.');
+}
+
+function updateLocalCache(id, updateData) {
+  let cached = JSON.parse(localStorage.getItem('cached_customers') || '[]');
+  cached = cached.map(c => {
+    if (c.id == id) {
+      return { ...c, ...updateData };
+    }
+    return c;
+  });
+  localStorage.setItem('cached_customers', JSON.stringify(cached));
+}
+
+async function syncOfflineQueue() {
+  if (!navigator.onLine) return;
+  const queue = getOfflineQueue();
+  if (queue.length === 0) return;
+
+  console.log('🔄 Syncing offline changes to Supabase...');
+
+  for (const item of queue) {
+    try {
+      if (item.type === 'INSERT_CUSTOMER') {
+        const { id, ...dataToInsert } = item.data;
+        await supabase.from('customers').insert([dataToInsert]);
+      } else if (item.type === 'UPDATE_CUSTOMER') {
+        await supabase.from('customers').update(item.data).eq('id', item.id);
+      } else if (item.type === 'DELETE_CUSTOMER') {
+        await supabase.from('customers').delete().eq('id', item.id);
+      }
+    } catch (err) {
+      console.error('Failed to sync offline item:', item, err);
+    }
+  }
+
+  localStorage.removeItem(OFFLINE_QUEUE_KEY);
+  alert('✅ Offline edits synced successfully!');
+  loadCustomers();
+}
+
+window.addEventListener('online', syncOfflineQueue);
+window.addEventListener('load', syncOfflineQueue);
