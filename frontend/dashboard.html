@@ -526,6 +526,8 @@
       <div class="col-md-3 col-12"><input type="text" placeholder="Name" id="name" class="form-control" required></div>
       <div class="col-md-3 col-12"><input type="text" placeholder="Phone (e.g. 08012345678 or 2348012345678)" id="phone" class="form-control" required></div>
       <div class="col-md-3 col-12"><input type="text" placeholder="Description" id="description" class="form-control" required></div>
+      <!-- NEW: Manual Date Brought field (was automatic before — now the user picks the date) -->
+      <div class="col-md-3 col-12"><input type="date" id="dateBrought" class="form-control" required></div>
       <div class="col-md-3 col-12"><input type="date" id="agreedDate" class="form-control" required></div>
 
       <div class="col-md-2 col-12">
@@ -688,7 +690,7 @@
     </div>
   </div>
 
-  <!-- ===================== Edit Customer Modal ===================== -->
+  <!-- ===================== Edit Customer Modal (EXPANDED — edit ALL fields) ===================== -->
   <div class="modal fade" id="editCustomerModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content">
@@ -698,12 +700,54 @@
         </div>
         <div class="modal-body">
           <input type="hidden" id="editCustomerId">
-          <label>Description</label>
-          <textarea id="editDescription" class="form-control mb-2" rows="4"></textarea>
-          <label>Total Clothes</label>
-          <input type="number" id="editTotalItems" class="form-control mb-2">
-          <label>Total Amount</label>
-          <input type="number" id="editTotalAmount" class="form-control">
+
+          <div class="row g-2">
+            <div class="col-md-6 col-12">
+              <label class="form-label">Name</label>
+              <input type="text" id="editName" class="form-control mb-2">
+            </div>
+            <div class="col-md-6 col-12">
+              <label class="form-label">Phone</label>
+              <input type="text" id="editPhone" class="form-control mb-2">
+            </div>
+            <div class="col-md-6 col-12">
+              <label class="form-label">Date Brought</label>
+              <input type="date" id="editDateBrought" class="form-control mb-2">
+            </div>
+            <div class="col-md-6 col-12">
+              <label class="form-label">Agreed Pick-up Date</label>
+              <input type="date" id="editAgreedDate" class="form-control mb-2">
+            </div>
+            <div class="col-md-6 col-12">
+              <label class="form-label">Special Instruction</label>
+              <select id="editInstruction" class="form-control mb-2">
+                <option value="">Special Instruction</option>
+                <option>Washing Only</option>
+                <option>Ironing Only</option>
+                <option>Dry Cleaning</option>
+                <option>Wash &amp; Iron</option>
+                <option>Starch &amp; Iron</option>
+                <option>Spray Starch</option>
+                <option>Light Starch</option>
+                <option>Drying Only</option>
+                <option>Wash and Starch</option>
+                <option>Starch only</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="col-md-3 col-6">
+              <label class="form-label">Total Clothes</label>
+              <input type="number" id="editTotalItems" class="form-control mb-2">
+            </div>
+            <div class="col-md-3 col-6">
+              <label class="form-label">Total Amount</label>
+              <input type="number" id="editTotalAmount" class="form-control mb-2">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Description</label>
+              <textarea id="editDescription" class="form-control mb-2" rows="4"></textarea>
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

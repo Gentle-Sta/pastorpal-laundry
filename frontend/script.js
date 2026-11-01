@@ -1,44 +1,72 @@
 const DELETE_PASSCODE = "1234"; // change this to your secret code
+
 // ==========================================
-// SMART SUMMARY DASHBOARD FUNCTION
+// SMART SUMMARY DASHBOARD FUNCTION — FIXED for accuracy
+// Previously renderSmartSummary was called BEFORE the overdue flag was set
+// on each customer, so overdue count was always 0.
+// Now it computes everything directly from the raw data.
 // ==========================================
 function renderSmartSummary(customers) {
   const container = document.getElementById("smartSummary");
   if (!container) return;
 
-  const overdueCount = customers.filter(c => c.overdue && c.status === "Pending").length;
-  const pendingCount = customers.filter(c => c.status === "Pending").length;
-  const pendingRevenue = customers.filter(c => c.status === "Pending").reduce((sum, c) => sum + (Number(c.totalAmount) || 0), 0);
-  
-  const today = new Date().toISOString().split('T')[0];
-  const collectedToday = customers.filter(c => c.status === "Collected" && c.pickupDate === today).length;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  container.innerHTML = `
-    <div class="col-md-3 col-6 p-2">
-      <div class="card border-0 shadow-sm p-2" style="background: #fff3cd;">
-        <h4 class="mb-0 text-warning">⚠️ ${overdueCount}</h4>
-        <small class="text-muted">Overdue</small>
+  let total = customers.length;
+  let pending = 0, collected = 0, overdue = 0;
+  let totalRevenue = 0, totalPaid = 0, totalClothes = 0;
+
+  customers.forEach(c => {
+    const status  = String(c.status || '').toLowerCase().trim();
+    const amount  = Number(c.totalAmount) || 0;
+    const items   = Number(c.totalItems) || 0;
+
+    totalRevenue += amount;
+    totalClothes += items;
+
+    // Sum all payments for this customer
+    const payments = safeParseJSON(c.payments, []);
+    const paid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    totalPaid += paid;
+
+    if (status === 'collected' || status === 'completed') {
+      collected++;
+    } else {
+      pending++;
+      // Overdue = pending AND agreed date is in the past
+      if (c.agreedDate) {
+        const agreed = new Date(c.agreedDate);
+        agreed.setHours(0, 0, 0, 0);
+        if (!isNaN(agreed) && agreed < today) overdue++;
+      }
+    }
+  });
+
+  const outstanding = Math.max(totalRevenue - totalPaid, 0);
+  const fmt = n => '₦' + Number(n).toLocaleString();
+
+  const cards = [
+    { label: 'Total Customers',  value: total,                  tint: 'rgba(13,110,253,0.12)',  border: 'rgba(13,110,253,0.4)' },
+    { label: 'Pending Orders',   value: pending,                tint: 'rgba(241,196,15,0.12)',  border: 'rgba(241,196,15,0.4)' },
+    { label: 'Collected',        value: collected,              tint: 'rgba(46,204,113,0.12)',  border: 'rgba(46,204,113,0.4)' },
+    { label: 'Overdue',          value: overdue,                tint: 'rgba(231,76,60,0.12)',   border: 'rgba(231,76,60,0.4)' },
+    { label: 'Total Revenue',    value: fmt(totalRevenue),      tint: 'rgba(52,152,219,0.12)',  border: 'rgba(52,152,219,0.4)' },
+    { label: 'Total Paid',       value: fmt(totalPaid),         tint: 'rgba(46,204,113,0.12)',  border: 'rgba(46,204,113,0.4)' },
+    { label: 'Outstanding',      value: fmt(outstanding),       tint: 'rgba(231,76,60,0.12)',   border: 'rgba(231,76,60,0.4)' },
+    { label: 'Clothes in Care',  value: totalClothes,           tint: 'rgba(108,117,125,0.12)', border: 'rgba(108,117,125,0.4)' },
+  ];
+
+  container.innerHTML = cards.map(c => `
+    <div class="col-6 col-md-4 col-lg-3 p-2">
+      <div class="card h-100 border-0" style="background:${c.tint};border:1px solid ${c.border}!important;backdrop-filter:blur(4px);">
+        <div class="card-body text-center" style="padding:1rem;">
+          <h4 style="font-weight:700;margin:0;font-size:1.4rem;color:var(--color-ink);letter-spacing:-0.03em;">${c.value}</h4>
+          <small style="color:var(--color-mute);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;font-size:0.72rem;">${c.label}</small>
+        </div>
       </div>
     </div>
-    <div class="col-md-3 col-6 p-2">
-      <div class="card border-0 shadow-sm p-2" style="background: #cce5ff;">
-        <h4 class="mb-0 text-primary">🧺 ${pendingCount}</h4>
-        <small class="text-muted">Pending Wash</small>
-      </div>
-    </div>
-    <div class="col-md-3 col-6 p-2">
-      <div class="card border-0 shadow-sm p-2" style="background: #d4edda;">
-        <h4 class="mb-0 text-success">💰 ₦${pendingRevenue.toLocaleString()}</h4>
-        <small class="text-muted">Pending Cash</small>
-      </div>
-    </div>
-    <div class="col-md-3 col-6 p-2">
-      <div class="card border-0 shadow-sm p-2" style="background: #e2e3e5;">
-        <h4 class="mb-0 text-secondary">✅ ${collectedToday}</h4>
-        <small class="text-muted">Collected Today</small>
-      </div>
-    </div>
-  `;
+  `).join('');
 }
 
 // dom refs
@@ -134,15 +162,26 @@ async function loadCustomers() {
       );
     }
 
-    renderSmartSummary(customers);
-    tableBody.innerHTML = "";
-    filtered.forEach(c => {
-      const dateStamp = c.date || new Date().toLocaleString();
-      const today = new Date();
+    // Set overdue flag on each customer BEFORE rendering summary
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    customers.forEach(c => {
       if (c.agreedDate) {
         const agreed = new Date(c.agreedDate);
+        agreed.setHours(0, 0, 0, 0);
         c.overdue = c.status === "Pending" && agreed < today;
+      } else {
+        c.overdue = false;
       }
+    });
+
+    // NOW render summary with accurate data (overdue flags are set)
+    renderSmartSummary(customers);
+
+    tableBody.innerHTML = "";
+    filtered.forEach(c => {
+      // Use the date column directly (stores the manual date brought)
+      const dateStamp = c.date || new Date().toLocaleString();
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
@@ -152,7 +191,7 @@ async function loadCustomers() {
         <td>${escapeHtml(c.description)}</td>
         <td>${c.totalItems ?? ''}</td>
         <td>${c.totalAmount ?? ''}</td>
-       
+
         <td>
           <span class="badge-status" style="
   background-color: ${c.status === 'Collected' ? '#28a745' : c.overdue ? '#dc3545' : '#ffc107'};
@@ -175,24 +214,24 @@ async function loadCustomers() {
           <button class="btn btn-sm btn-warning mb-1 edit-btn" data-id="${c.id}">Edit</button>
           <button class="btn btn-sm btn-danger mb-1 delete-btn" data-id="${c.id}">Delete</button>
           <button class="btn btn-sm btn-primary mb-1 add-payment-btn" data-id="${c.id}">Add Payment</button>
-<button class="btn btn-sm btn-success mb-1 send-menu-btn" 
+<button class="btn btn-sm btn-success mb-1 send-menu-btn"
   data-id="${c.id}"
-  data-phone="${escapeHtml(c.phone)}" 
+  data-phone="${escapeHtml(c.phone)}"
   data-name="${escapeHtml(c.name)}">
   Menu
 </button>
 
-<button class="btn btn-sm btn-outline-primary mb-1 send-status-btn" 
+<button class="btn btn-sm btn-outline-primary mb-1 send-status-btn"
   data-id="${c.id}">
   Status
 </button>
 
-<button class="btn btn-sm btn-outline-warning mb-1 send-amount-btn" 
+<button class="btn btn-sm btn-outline-warning mb-1 send-amount-btn"
   data-id="${c.id}">
   Amount
 </button>
 
-<button class="btn btn-sm btn-outline-dark mb-1 send-record-btn" 
+<button class="btn btn-sm btn-outline-dark mb-1 send-record-btn"
   data-id="${c.id}">
   Record
 </button>
@@ -282,9 +321,15 @@ async function viewDetails(id) {
     const paid = c.paid ? "Yes" : "No";
     const remaining = c.remaining ?? 0;
 
+    // Format the date for display (handles both ISO timestamps and YYYY-MM-DD date strings)
+    const dateBroughtDisplay = c.date
+      ? (c.date.includes('T') ? new Date(c.date).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' }) : new Date(c.date + 'T00:00:00').toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' }))
+      : "Not recorded";
+
     modalBody.innerHTML = `
       <p><strong>Name:</strong> ${escapeHtml(c.name)}</p>
       <p><strong>Phone:</strong> ${escapeHtml(c.phone)}</p>
+      <p><strong>Date Brought:</strong> ${dateBroughtDisplay}</p>
       <p><strong>Description:</strong></p>
       <div class="mb-2 p-2 bg-light rounded">${formattedDesc}</div>
       <p><strong>Special Instruction:</strong> ${escapeHtml(c.instruction || "None")}</p>
@@ -347,24 +392,24 @@ modalBody.addEventListener("click", async (e) => {
   if (editBtn) {
     const oldNum = Number(clothesLog[index].num);
     const oldDesc = clothesLog[index].desc;
-  
+
     const newNum = Number(prompt("Update number of clothes:", oldNum));
-  
+
     if (!newNum || isNaN(newNum) || newNum <= 0) {
       alert("❌ Invalid number of clothes");
       return;
     }
-  
+
     const newDesc = prompt("Update description:", oldDesc);
-  
+
     if (!newDesc || newDesc.trim() === "") {
       alert("❌ Description cannot be empty");
       return;
     }
-  
+
     clothesLog[index].num = newNum;
     clothesLog[index].desc = newDesc.trim();
-  
+
     const totalCollected = clothesLog.reduce((sum, log) => sum + Number(log.num || 0), 0);
     const remaining = (customer.totalItems || 0) - totalCollected;
 
@@ -377,39 +422,39 @@ modalBody.addEventListener("click", async (e) => {
       loadCustomers();
       return;
     }
-  
+
     const { error: updateError } = await supabase
       .from("customers")
       .update(updateData)
       .eq("id", customerId);
-  
+
     if (updateError) {
       alert("❌ Failed to update clothes log");
       return;
     }
-  
+
     alert("✅ Clothes log updated successfully");
     modal.hide();
     loadCustomers();
     return;
   }
-  
+
   /* DELETE CLOTHES LOG */
   if (deleteBtn) {
     const enteredCode = prompt("Enter passcode to delete this clothes log:");
-  
+
     if (!enteredCode) {
       alert("❌ Deletion cancelled");
       return;
     }
-  
+
     if (enteredCode !== DELETE_PASSCODE) {
       alert("❌ Wrong passcode! Clothes log not deleted.");
       return;
     }
-  
+
     clothesLog.splice(index, 1);
-  
+
     const totalCollected = clothesLog.reduce((sum, log) => sum + Number(log.num || 0), 0);
     const remaining = (customer.totalItems || 0) - totalCollected;
 
@@ -422,17 +467,17 @@ modalBody.addEventListener("click", async (e) => {
       loadCustomers();
       return;
     }
-  
+
     const { error: deleteError } = await supabase
       .from("customers")
       .update(updateData)
       .eq("id", customerId);
-  
+
     if (deleteError) {
       alert("❌ Failed to delete clothes log. Please try again.");
       return;
     }
-  
+
     alert("🗑️ Clothes log deleted successfully");
     modal.hide();
     loadCustomers();
@@ -644,23 +689,37 @@ async function openImagesModal(customerId) {
   imagesModal.show();
 }
 
-// EDIT CUSTOMER MODAL
+// ==========================================
+// EDIT CUSTOMER MODAL — EXPANDED to edit ALL fields
+// Now edits: name, phone, date (date brought), agreedDate, instruction,
+//            description, totalItems, totalAmount
+// NOTE: Uses the existing `date` column for date brought — NO new column needed.
+// ==========================================
 const editCustomerModal = new bootstrap.Modal(
   document.getElementById("editCustomerModal")
 );
 
 document.getElementById("saveCustomerEditBtn").addEventListener("click", async () => {
   const id = document.getElementById("editCustomerId").value;
+  const name = document.getElementById("editName").value.trim();
+  const phone = document.getElementById("editPhone").value.trim();
+  const dateBrought = document.getElementById("editDateBrought").value;  // stored in `date` column
+  const agreedDate = document.getElementById("editAgreedDate").value;
+  const instruction = document.getElementById("editInstruction").value;
   const description = document.getElementById("editDescription").value.trim();
   const totalItems = Number(document.getElementById("editTotalItems").value);
   const totalAmount = Number(document.getElementById("editTotalAmount").value);
 
-  if (
-    !description ||
-    isNaN(totalItems) || totalItems <= 0 ||
-    isNaN(totalAmount) || totalAmount < 0
-  ) {
-    alert("❌ Please fill all fields correctly");
+  if (!name || !phone || !description) {
+    alert("❌ Name, phone, and description are required");
+    return;
+  }
+  if (isNaN(totalItems) || totalItems < 0) {
+    alert("❌ Total clothes must be a valid number");
+    return;
+  }
+  if (isNaN(totalAmount) || totalAmount < 0) {
+    alert("❌ Total amount must be a valid number");
     return;
   }
 
@@ -686,7 +745,20 @@ document.getElementById("saveCustomerEditBtn").addEventListener("click", async (
   const totalCollected = existingLog.reduce((sum, log) => sum + (Number(log.num) || 0), 0);
   const remaining = Math.max(totalItems - totalCollected, 0);
 
-  const updateData = { description, totalItems, totalAmount, remaining };
+  // Build update data with ALL editable fields
+  // IMPORTANT: dateBrought is stored in the existing `date` column (NOT a new column)
+  // This prevents the 400 error from Supabase when the column doesn't exist
+  const updateData = {
+    name,
+    phone,
+    date: dateBrought,  // ← stores manual date in the existing `date` column
+    agreedDate,
+    instruction,
+    description,
+    totalItems,
+    totalAmount,
+    remaining
+  };
 
   if (!navigator.onLine) {
     queueOfflineAction({ type: 'UPDATE_CUSTOMER', id, data: updateData });
@@ -702,7 +774,9 @@ document.getElementById("saveCustomerEditBtn").addEventListener("click", async (
     .eq("id", id);
 
   if (error) {
-    alert("❌ Failed to update customer");
+    // Show the ACTUAL Supabase error so you know exactly what went wrong
+    console.error("Supabase update error:", error);
+    alert("❌ Failed to update customer.\n\nError: " + (error.message || error.details || JSON.stringify(error)));
     return;
   }
 
@@ -730,7 +804,28 @@ async function editCustomer(id) {
     return;
   }
 
+  // Populate ALL fields in the edit modal
   document.getElementById("editCustomerId").value = id;
+  document.getElementById("editName").value = data.name || '';
+  document.getElementById("editPhone").value = data.phone || '';
+  // Date Brought — read from the existing `date` column
+  // Handles both ISO timestamps (old records) and YYYY-MM-DD date strings (new records)
+  if (data.date) {
+    if (data.date.includes('T')) {
+      // ISO timestamp (old format) — extract YYYY-MM-DD
+      const d = new Date(data.date);
+      if (!isNaN(d)) {
+        document.getElementById("editDateBrought").value = d.toISOString().split('T')[0];
+      }
+    } else {
+      // Already a YYYY-MM-DD date string
+      document.getElementById("editDateBrought").value = data.date;
+    }
+  } else {
+    document.getElementById("editDateBrought").value = '';
+  }
+  document.getElementById("editAgreedDate").value = data.agreedDate || '';
+  document.getElementById("editInstruction").value = data.instruction || '';
   document.getElementById("editDescription").value = data.description || '';
   document.getElementById("editTotalItems").value = data.totalItems || '';
   document.getElementById("editTotalAmount").value = data.totalAmount || '';
@@ -941,7 +1036,12 @@ document.addEventListener("keydown", e => {
   }
 });
 
-// ADD NEW CUSTOMER
+// ==========================================
+// ADD NEW CUSTOMER — uses MANUAL date brought
+// (was: date = new Date().toISOString()  → automatic)
+// (now: date = manual input from the dateBrought form field)
+// Stores in the existing `date` column — NO new column needed in Supabase.
+// ==========================================
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const name = document.getElementById("name").value.trim();
@@ -951,6 +1051,8 @@ form.addEventListener("submit", async (e) => {
   const totalAmount = Number(document.getElementById("totalAmount").value);
   const instruction = document.getElementById("instruction").value;
   const agreedDate = document.getElementById("agreedDate").value;
+  // NEW: manual date brought from the form (stored in the existing `date` column)
+  const dateBrought = document.getElementById("dateBrought").value;
 
   const fileInput = document.getElementById("customerImage");
   let imageUrl = null;
@@ -981,7 +1083,7 @@ form.addEventListener("submit", async (e) => {
 
   const newCustomer = {
     id: Date.now(),
-    date: new Date().toISOString(),
+    date: dateBrought || new Date().toISOString().split('T')[0],  // manual date brought (YYYY-MM-DD)
     name,
     phone,
     description,
@@ -1206,14 +1308,14 @@ const installBtn = document.getElementById('pwaInstallBtn');
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  
+
   if (installBtn) {
     installBtn.classList.remove('d-none');
-    
+
     installBtn.addEventListener('click', () => {
       installBtn.classList.add('d-none');
       deferredPrompt.prompt();
-      
+
       deferredPrompt.userChoice.then((choiceResult) => {
         if (choiceResult.outcome === 'accepted') {
           console.log('User accepted the install prompt');
