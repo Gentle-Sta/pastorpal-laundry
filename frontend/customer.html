@@ -1,37 +1,152 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Customer Laundry Status</title>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <title>Customer Laundry Receipt | Pastor Pal Laundry</title>
+
+  <!-- Bootstrap CSS (updated to 5.3.3) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome 6 -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <!-- Google Font: Outfit (same as index.html) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Site styles (the liquid-glass system) -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- PDF generation tools -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  
+
   <style>
+    /* ============================================================
+       RECEIPT PAGE — LIQUID GLASS
+       Same transparent aesthetic as index.html / dashboard.html.
+       The on-screen receipt is transparent glass. During PDF
+       generation, .pdf-render-mode forces a solid white background
+       so the downloaded PDF looks clean and professional.
+       ============================================================ */
+
     body {
-      font-size: 15px; 
-      line-height: 1.3; 
+      font-family: var(--font-sans);
+      font-size: 15px;
+      line-height: 1.4;
     }
-    
+
+    /* ---- Download button — glass style ---- */
+    #downloadPdfBtn {
+      background: rgba(46, 204, 113, 0.15) !important;
+      color: #145a26 !important;
+      border: 1px solid rgba(46, 204, 113, 0.5) !important;
+      backdrop-filter: blur(6px);
+      border-radius: var(--radius-pill) !important;
+      padding: 0.7rem 1.5rem !important;
+      font-weight: 600;
+      transition: transform 180ms ease, background 200ms ease;
+      text-shadow: 0 1px 6px rgba(255, 255, 255, 0.4);
+    }
+    #downloadPdfBtn:hover {
+      background: rgba(46, 204, 113, 0.25) !important;
+      color: #145a26 !important;
+      transform: translateY(-1px);
+    }
+    #downloadPdfBtn:disabled {
+      opacity: 0.7;
+      cursor: wait;
+    }
+
+    /* ---- Warning banner — glass ---- */
+    #downloadBanner {
+      background: rgba(241, 196, 15, 0.15) !important;
+      color: #6b5400 !important;
+      border: 1px solid rgba(241, 196, 15, 0.4) !important;
+      backdrop-filter: blur(8px) saturate(1.2);
+      border-radius: 1rem !important;
+      text-shadow: 0 1px 6px rgba(255, 255, 255, 0.4);
+      transition: opacity 1.5s ease-out;
+      opacity: 1;
+    }
+    #downloadBanner.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* ---- Receipt card — TRANSPARENT GLASS ---- */
+    #receiptPrintArea {
+      background: rgba(255, 255, 255, 0.08) !important;
+      backdrop-filter: blur(10px) saturate(1.2);
+      border: 1px solid rgba(255, 255, 255, 0.35) !important;
+      border-radius: 1.5rem !important;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.90),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+        0 24px 50px rgba(12, 16, 20, 0.18) !important;
+      padding: 2rem !important;
+      color: var(--color-ink) !important;
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+    }
+
+    /* All text gets a subtle white shadow so it's readable on any background */
+    #receiptPrintArea h2,
+    #receiptPrintArea h3,
+    #receiptPrintArea p,
+    #receiptPrintArea li,
+    #receiptPrintArea span,
+    #receiptPrintArea b,
+    #receiptPrintArea .section-title {
+      text-shadow: 0 1px 6px rgba(255, 255, 255, 0.45);
+    }
+
+    /* ---- Receipt header ---- */
+    .receipt-header {
+      text-align: center;
+      margin-bottom: 20px;
+      border-bottom: 2px dashed rgba(13, 110, 253, 0.4);
+      padding-bottom: 15px;
+    }
+    .receipt-header img {
+      max-height: 70px;
+      margin-bottom: 10px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      box-shadow: 0 4px 14px rgba(12, 16, 20, 0.15);
+    }
+    .receipt-header h2 {
+      font-weight: 700;
+      color: var(--color-ink) !important;
+      margin-bottom: 4px;
+      letter-spacing: -0.02em;
+    }
+    .receipt-header p {
+      color: var(--color-mute) !important;
+      margin: 0;
+    }
+
+    /* ---- Main heading ---- */
     h3 {
       font-size: 1.9rem;
       margin-bottom: 1.2rem;
-    }
-    
-    .card {
-      padding: 2rem !important; 
-    }
-    
-    #content p {
-      font-size: 1.2rem; 
-      margin-bottom: 1rem;
+      font-weight: 600;
+      color: var(--color-ink) !important;
+      letter-spacing: -0.02em;
     }
 
+    #content p {
+      font-size: 1.15rem;
+      margin-bottom: 0.8rem;
+      color: var(--color-ink) !important;
+    }
+
+    /* ---- Section titles ---- */
     .section-title {
-      font-size: 1.3rem;
-      font-weight: bold;
-      color: #0056b3;
-      border-bottom: 2px solid #e0e0e0;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--color-ink) !important;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.3);
       padding-bottom: 5px;
       margin-top: 25px;
       margin-bottom: 15px;
@@ -39,30 +154,35 @@
       break-after: avoid;
     }
 
+    /* ---- Service badge — glass ---- */
     .service-badge {
       font-size: 1.05rem;
       font-weight: 700;
-      color: #0d6efd;
-      background-color: #e7f1ff;
-      padding: 5px 10px;
-      border-radius: 6px;
+      color: #0b4ab8 !important;
+      background-color: rgba(13, 110, 253, 0.15) !important;
+      padding: 5px 12px;
+      border-radius: 8px;
       margin-top: 12px;
       margin-bottom: 6px;
       display: inline-block;
-      border-left: 3px solid #0d6efd;
+      border-left: 3px solid rgba(13, 110, 253, 0.6);
+      backdrop-filter: blur(4px);
       page-break-inside: avoid;
       break-inside: avoid;
     }
 
+    /* ---- Description box — glass ---- */
     .description-box {
-      background-color: #f8f9fa;
+      background-color: rgba(255, 255, 255, 0.08) !important;
+      backdrop-filter: blur(6px);
       padding: 15px;
-      border-radius: 8px;
-      border-left: 4px solid #007bff;
+      border-radius: 10px;
+      border-left: 4px solid rgba(13, 110, 253, 0.5);
       line-height: 1.8;
-      font-size: 1.3rem;
+      font-size: 1.2rem;
       word-wrap: break-word;
       overflow-wrap: break-word;
+      color: var(--color-ink) !important;
     }
 
     .item-line {
@@ -75,26 +195,25 @@
     .item-price {
       font-size: 1.1rem;
       font-weight: bold;
-      color: #28a745;
+      color: #145a26 !important;
       margin-left: 15px;
       display: block;
     }
-    
+
     .overdue-warning {
-      color: #dc3545;
+      color: #962d22 !important;
       font-weight: bold;
       font-size: 1.3rem;
+      text-shadow: 0 1px 8px rgba(255, 255, 255, 0.5);
     }
 
-    .payment-section {
-      page-break-before: auto;
-    }
-
+    /* ---- Payment list ---- */
+    .payment-section { page-break-before: auto; }
     .payment-list {
       padding-left: 0;
       list-style-type: none;
+      color: var(--color-ink) !important;
     }
-
     .payment-list li {
       margin-bottom: 8px;
       font-size: 1.1rem;
@@ -102,33 +221,19 @@
       break-inside: avoid;
     }
 
-    /* Download Banner Animation */
-    #downloadBanner {
-      transition: opacity 1.5s ease-out;
-      opacity: 1;
-    }
-    #downloadBanner.fade-out {
-      opacity: 0;
-      pointer-events: none;
-    }
+    /* ---- Status colors (used in the JS-generated content) ---- */
+    .text-primary { color: #0b4ab8 !important; }
+    .text-muted { color: var(--color-mute) !important; }
+    .text-success { color: #145a26 !important; }
+    .text-danger { color: #962d22 !important; }
+    .text-warning { color: #6b5400 !important; }
 
-    /* Printable/Downloadable Receipt Styling */
-    #receiptPrintArea {
-      background: #ffffff;
-      padding: 10px;
-    }
-    .receipt-header {
-      text-align: center;
-      margin-bottom: 20px;
-      border-bottom: 2px dashed #007bff;
-      padding-bottom: 15px;
-    }
-    .receipt-header img {
-      max-height: 70px;
-      margin-bottom: 10px;
-    }
-
-    /* Temporary class added dynamically during PDF generation */
+    /* ============================================================
+       PDF RENDER MODE — solid white background for clean PDF output
+       This class is added temporarily during PDF generation.
+       The on-screen receipt is transparent glass, but the PDF
+       needs a solid white background to look professional.
+       ============================================================ */
     .pdf-render-mode {
       width: 790px !important;
       max-width: 790px !important;
@@ -137,7 +242,50 @@
       box-sizing: border-box !important;
       font-size: 13px !important;
       box-shadow: none !important;
+      /* SOLID WHITE for PDF — overrides the transparent glass */
+      background: #ffffff !important;
+      backdrop-filter: none !important;
+      border: 1px solid #e0e0e0 !important;
+      border-radius: 12px !important;
+      color: #1a1d21 !important;
     }
+    /* In PDF mode, remove text-shadow (not needed on solid white) */
+    .pdf-render-mode h2,
+    .pdf-render-mode h3,
+    .pdf-render-mode p,
+    .pdf-render-mode li,
+    .pdf-render-mode span,
+    .pdf-render-mode b,
+    .pdf-render-mode .section-title,
+    .pdf-render-mode .description-box,
+    .pdf-render-mode .service-badge,
+    .pdf-render-mode .item-line,
+    .pdf-render-mode .item-price,
+    .pdf-render-mode .overdue-warning {
+      text-shadow: none !important;
+      color: #1a1d21 !important;
+    }
+    .pdf-render-mode .text-primary { color: #0d6efd !important; }
+    .pdf-render-mode .text-muted { color: #6c757d !important; }
+    .pdf-render-mode .text-success { color: #198754 !important; }
+    .pdf-render-mode .text-danger { color: #dc3545 !important; }
+    .pdf-render-mode .item-price { color: #28a745 !important; }
+    .pdf-render-mode .overdue-warning { color: #dc3545 !important; }
+    .pdf-render-mode .service-badge {
+      background-color: #e7f1ff !important;
+      color: #0d6efd !important;
+    }
+    .pdf-render-mode .description-box {
+      background-color: #f8f9fa !important;
+    }
+    .pdf-render-mode .receipt-header {
+      border-bottom: 2px dashed #007bff !important;
+    }
+    .pdf-render-mode .receipt-header h2 {
+      color: #0d6efd !important;
+    }
+
+    /* PDF sizing overrides */
     .pdf-render-mode h3 {
       font-size: 1.4rem !important;
       margin-bottom: 0.8rem !important;
@@ -182,321 +330,322 @@
     }
   </style>
 </head>
+<body>
 
-<body class="bg-light">
-
-<div class="container mt-4 mb-5">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <button class="btn btn-success fw-bold px-3 py-2" id="downloadPdfBtn" onclick="downloadReceipt()">
-      📥 Download Receipt (PDF)
-    </button>
+  <!-- ===================== SCENE (same animated background as index.html) ===================== -->
+  <div class="scene" aria-hidden="true">
+    <div class="scene-photo"></div>
+    <div class="caustic"></div>
   </div>
 
-  <div id="downloadBanner" class="alert alert-warning text-center fw-bold fs-5 shadow-sm" role="alert">
-    ⚠️ PLEASE IT IS ADVISED YOU DOWNLOAD THIS RECEIPT. CHECK THE BUTTON AT THE TOP!
-  </div>
-
-  <div class="card p-3 shadow" id="receiptPrintArea">
-    <div class="receipt-header">
-      <img src="pastorpal-img.jpeg" alt="PASTOR PAL Logo" onerror="this.style.display='none'">
-      <h2 class="fw-bold text-primary mb-1">PASTOR PAL LAUNDRY</h2>
-      <p class="text-muted mb-0">Quality & Professional Laundry Services</p>
+  <div class="container mt-4 mb-5" style="position: relative; z-index: 1;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <button class="btn fw-bold px-3 py-2" id="downloadPdfBtn" onclick="downloadReceipt()">
+        <i class="fas fa-download me-1"></i> Download Receipt (PDF)
+      </button>
     </div>
 
-    <h3 class="text-center">🧺 Laundry Receipt & Status</h3>
-    <div id="content">Loading...</div>
+    <div id="downloadBanner" class="alert text-center fw-bold fs-5" role="alert">
+      <i class="fas fa-triangle-exclamation me-1"></i> It is advised you download this receipt. Check the button above!
+    </div>
+
+    <div class="card" id="receiptPrintArea">
+      <div class="receipt-header">
+        <img src="pastorpal-img.jpeg" alt="PASTOR PAL Logo" onerror="this.style.display='none'">
+        <h2>PASTOR PAL LAUNDRY</h2>
+        <p>Quality &amp; Professional Laundry Services</p>
+      </div>
+
+      <h3 class="text-center"><i class="fas fa-shirt me-1"></i> Laundry Receipt &amp; Status</h3>
+      <div id="content">Loading...</div>
+    </div>
   </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<script>
-setTimeout(() => {
-  const banner = document.getElementById("downloadBanner");
-  if (banner) {
-    banner.classList.add("fade-out");
-    setTimeout(() => banner.style.display = "none", 1500);
-  }
-}, 7000);
-
-function safeParseJSON(value, fallback = []) {
-  if (Array.isArray(value)) return value;
-  if (!value) return fallback;
-  try {
-    const parsed = typeof value === "string" ? JSON.parse(value) : value;
-    return Array.isArray(parsed) ? parsed : fallback;
-  } catch { return fallback; }
-}
-
-const supabaseClient = window.supabase.createClient(
-  "https://rpcczulnkogylqjzlikq.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwY2N6dWxua29neWxxanpsaWtxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0MzM2NTUsImV4cCI6MjA3NjAwOTY1NX0.jTbunk_ErVYXEXriO6hWUhcV0MQrlnhkVRoJQHduLRA"
-);
-
-const urlParams = new URLSearchParams(window.location.search);
-const id = urlParams.get("id");
-let customerNameForPdf = "Laundry_Receipt";
-
-async function loadCustomer() {
-  if (!id) {
-    document.getElementById("content").innerHTML = "<p class='text-danger'>Invalid link.</p>";
-    return;
-  }
-
-  const { data, error } = await supabaseClient
-    .from("customers")
-    .select("*")
-    .eq("id", id)
-    .single();
-
-  if (error || !data) {
-    document.getElementById("content").innerHTML = "<p class='text-danger'>Customer not found.</p>";
-    return;
-  }
-
-  customerNameForPdf = data.name ? data.name.replace(/\s+/g, '_') : "Customer";
-
-  const dateBrought = data.date ? new Date(data.date).toLocaleDateString('en-NG', { 
-    year: 'numeric', month: 'long', day: 'numeric' 
-  }) : "Not recorded";
-
-  let formattedDesc = "None";
-  if (data.description) {
-    const segments = data.description.split(/,|\n|;/);
-    
-    formattedDesc = segments.map(segment => {
-      let clean = segment.trim();
-      if (!clean) return '';
-
-      let headerHtml = '';
-
-      const tagMatch = clean.match(/\[(.*?)\]/gi);
-      if (tagMatch) {
-        tagMatch.forEach(tag => {
-          const serviceName = tag.replace(/\[\vert{}\]/g, '').toUpperCase();
-          headerHtml += `<div class="service-badge">🧺 SERVICE: ${serviceName}</div>`;
-          clean = clean.replace(tag, '').trim();
-        });
+  <script>
+    // Banner auto-fade after 7 seconds
+    setTimeout(() => {
+      const banner = document.getElementById("downloadBanner");
+      if (banner) {
+        banner.classList.add("fade-out");
+        setTimeout(() => banner.style.display = "none", 1500);
       }
+    }, 7000);
 
-      if (!clean) return headerHtml;
+    function safeParseJSON(value, fallback = []) {
+      if (Array.isArray(value)) return value;
+      if (!value) return fallback;
+      try {
+        const parsed = typeof value === "string" ? JSON.parse(value) : value;
+        return Array.isArray(parsed) ? parsed : fallback;
+      } catch { return fallback; }
+    }
 
-      const priceMatch = clean.match(/\b\d{3,}\b/);
-      if (priceMatch) {
-        const extractedPrice = Number(priceMatch[0]).toLocaleString();
-        const itemName = clean.replace(/\b\d{3,}\b/, '').trim();
-        return `
-          ${headerHtml}
-          <div class="item-line">
-            • ${itemName}
-            <span class="item-price">Price: ₦${extractedPrice}</span>
-          </div>`;
-      } else {
-        return `
-          ${headerHtml}
-          <div class="item-line">• ${clean}</div>`;
-      }
-    }).join('');
-  }
-
-  let isOverdue = false;
-  if (data.agreedDate && data.status === "Pending") {
-    isOverdue = new Date(data.agreedDate) < new Date();
-  }
-
-  const payments = safeParseJSON(data.payments, []);
-  const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-  const totalAmount = Number(data.totalAmount) || 0;
-  const balance = Math.max(totalAmount - totalPaid, 0);
-  
-  let paymentsHtml = "<li>No payments recorded yet</li>";
-  if (payments.length > 0) {
-    paymentsHtml = payments.map(p => {
-      const pDate = new Date(p.date).toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' });
-      return `<li>₦${p.amount.toLocaleString()} via <b>${p.method}</b> on ${pDate}</li>`;
-    }).join('');
-  }
-
-  document.getElementById("content").innerHTML = `
-    <div class="section-title">Customer Information</div>
-    <p><b>Name:</b> ${data.name}</p>
-    <p><b>Phone:</b> ${data.phone}</p>
-    <p>
-      <b>Status:</b> 
-      <span style="color: ${data.status === 'Collected' ? 'green' : '#ffc107'}; font-weight: bold; font-size: 1.3rem;">
-        ${data.status}
-      </span>
-    </p>
-    ${isOverdue ? '<p class="overdue-warning">⚠️ Overdue for pickup!</p>' : ''}
-
-    <div class="section-title">Important Dates</div>
-    <p><b>Date Brought:</b> ${dateBrought}</p>
-    <p><b>Agreed Pick-up Date:</b> ${data.agreedDate || "Not set"}</p>
-    ${data.status === 'Collected' ? `<p><b>Actual Pickup Date:</b> ${data.pickupDate || "Not set"}</p>` : ''}
-
-    <div class="section-title">Clothes & Service Details</div>
-    <p><b>General Notes:</b> ${data.instruction || "None"}</p>
-    <p><b>Total Clothes Dropped:</b> ${data.totalItems ?? 0}</p>
-    <p><b>Remaining Clothes:</b> ${data.remaining ?? 0}</p>
-    
-    <p><b>Breakdown:</b></p>
-    <div class="description-box">
-      ${formattedDesc}
-    </div>
-
-    <div class="payment-section">
-      <div class="section-title">Payment Information</div>
-      <p><b>Total Amount:</b> ₦${totalAmount.toLocaleString()}</p>
-      <p><b>Total Paid:</b> <span style="color: green; font-weight: bold;">₦${totalPaid.toLocaleString()}</span></p>
-      <p><b>Balance Remaining:</b> <span style="color: ${balance > 0 ? 'red' : 'green'}; font-weight: bold; font-size: 1.3rem;">₦${balance.toLocaleString()}</span></p>
-
-      <ul class="payment-list mt-3">
-        <li><b>Payment History:</b></li>
-        ${paymentsHtml}
-      </ul>
-    </div>
-  `;
-}
-
-async function downloadReceipt() {
-  const element = document.getElementById('receiptPrintArea');
-  const btn = document.getElementById('downloadPdfBtn');
-  const originalLabel = btn ? btn.innerHTML : '';
-
-  if (!window.html2canvas || !window.jspdf) {
-    alert("PDF tools are still loading. Please check your internet and try again.");
-    return;
-  }
-
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '⏳ Preparing PDF...';
-  }
-
-  window.scrollTo(0, 0);
-
-  // Apply desktop rendering class temporary lock
-  element.classList.add('pdf-render-mode');
-
-  try {
-    // Wait for the browser to re-layout with the desktop width
-    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
-    const { jsPDF } = window.jspdf;
-
-    // A4 layout (millimetres)
-    const PAGE_W = 210, PAGE_H = 297, MARGIN = 8, FOOTER = 5;
-    const contentW = PAGE_W - 2 * MARGIN;
-    const contentH = PAGE_H - 2 * MARGIN - FOOTER;
-
-    const elRect = element.getBoundingClientRect();
-    const W = elRect.width;
-    const totalH = Math.ceil(elRect.height);
-    const pxPerMm = W / contentW;
-    const pageHpx = contentH * pxPerMm; // how many screen-pixels fit on one PDF page
-
-    // Collect the blocks that must never be sliced through the middle
-    const blocks = [];
-    const leaves = element.querySelectorAll(
-      '.receipt-header, h3, #content p, #content .item-line, #content .service-badge, #content .section-title, #content .payment-list li'
+    const supabaseClient = window.supabase.createClient(
+      "https://rpcczulnkogylqjzlikq.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwY2N6dWxua29neWxxanpsaWtxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0MzM2NTUsImV4cCI6MjA3NjAwOTY1NX0.jTbunk_ErVYXEXriO6hWUhcV0MQrlnhkVRoJQHduLRA"
     );
-    leaves.forEach(el => {
-      const r = el.getBoundingClientRect();
-      let top = r.top - elRect.top;
-      let bottom = r.bottom - elRect.top;
-      const next = el.nextElementSibling;
 
-      // Keep headings / labels together with whatever comes right after them
-      if (next && (el.matches('.section-title, .service-badge') || el.matches('.payment-list li:first-child'))) {
-        bottom = Math.max(bottom, next.getBoundingClientRect().bottom - elRect.top);
-      }
-      if (next && el.matches('#content p') && next.classList.contains('description-box') && next.firstElementChild) {
-        bottom = Math.max(bottom, next.firstElementChild.getBoundingClientRect().bottom - elRect.top);
-      }
-      blocks.push({ top, bottom });
-    });
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get("id");
+    let customerNameForPdf = "Laundry_Receipt";
 
-    // Work out where each page ends: fill the page, only backing up
-    // enough to avoid cutting through a line or block
-    const pages = [];
-    let start = 0;
-    while (start < totalH - 1) {
-      let end = start + pageHpx;
-      if (end >= totalH - 1) {
-        end = totalH;
-      } else {
-        let changed = true, guard = 0;
-        while (changed && guard++ < 500) {
-          changed = false;
-          for (const b of blocks) {
-            if (b.top > start + 1 && b.top < end - 0.5 && b.bottom > end + 0.5) {
-              end = b.top;
-              changed = true;
+    async function loadCustomer() {
+      if (!id) {
+        document.getElementById("content").innerHTML = "<p class='text-danger'>Invalid link.</p>";
+        return;
+      }
+
+      const { data, error } = await supabaseClient
+        .from("customers")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error || !data) {
+        document.getElementById("content").innerHTML = "<p class='text-danger'>Customer not found.</p>";
+        return;
+      }
+
+      customerNameForPdf = data.name ? data.name.replace(/\s+/g, '_') : "Customer";
+
+      const dateBrought = data.date ? new Date(data.date).toLocaleDateString('en-NG', {
+        year: 'numeric', month: 'long', day: 'numeric'
+      }) : "Not recorded";
+
+      let formattedDesc = "None";
+      if (data.description) {
+        const segments = data.description.split(/,|\n|;/);
+
+        formattedDesc = segments.map(segment => {
+          let clean = segment.trim();
+          if (!clean) return '';
+
+          let headerHtml = '';
+
+          const tagMatch = clean.match(/\[(.*?)\]/gi);
+          if (tagMatch) {
+            tagMatch.forEach(tag => {
+              const serviceName = tag.replace(/[\[\]{}]/g, '').toUpperCase();
+              headerHtml += `<div class="service-badge"><i class="fas fa-shirt me-1"></i> SERVICE: ${serviceName}</div>`;
+              clean = clean.replace(tag, '').trim();
+            });
+          }
+
+          if (!clean) return headerHtml;
+
+          const priceMatch = clean.match(/\b\d{3,}\b/);
+          if (priceMatch) {
+            const extractedPrice = Number(priceMatch[0]).toLocaleString();
+            const itemName = clean.replace(/\b\d{3,}\b/, '').trim();
+            return `
+              ${headerHtml}
+              <div class="item-line">
+                • ${itemName}
+                <span class="item-price">Price: ₦${extractedPrice}</span>
+              </div>`;
+          } else {
+            return `
+              ${headerHtml}
+              <div class="item-line">• ${clean}</div>`;
+          }
+        }).join('');
+      }
+
+      let isOverdue = false;
+      if (data.agreedDate && data.status === "Pending") {
+        isOverdue = new Date(data.agreedDate) < new Date();
+      }
+
+      const payments = safeParseJSON(data.payments, []);
+      const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+      const totalAmount = Number(data.totalAmount) || 0;
+      const balance = Math.max(totalAmount - totalPaid, 0);
+
+      let paymentsHtml = "<li>No payments recorded yet</li>";
+      if (payments.length > 0) {
+        paymentsHtml = payments.map(p => {
+          const pDate = new Date(p.date).toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' });
+          return `<li>₦${p.amount.toLocaleString()} via <b>${p.method}</b> on ${pDate}</li>`;
+        }).join('');
+      }
+
+      const statusColor = data.status === 'Collected' ? '#145a26' : '#6b5400';
+
+      document.getElementById("content").innerHTML = `
+        <div class="section-title"><i class="fas fa-user me-1"></i> Customer Information</div>
+        <p><b>Name:</b> ${data.name}</p>
+        <p><b>Phone:</b> ${data.phone}</p>
+        <p>
+          <b>Status:</b>
+          <span style="color: ${statusColor}; font-weight: bold; font-size: 1.3rem;">
+            ${data.status}
+          </span>
+        </p>
+        ${isOverdue ? '<p class="overdue-warning"><i class="fas fa-triangle-exclamation me-1"></i> Overdue for pickup!</p>' : ''}
+
+        <div class="section-title"><i class="fas fa-calendar me-1"></i> Important Dates</div>
+        <p><b>Date Brought:</b> ${dateBrought}</p>
+        <p><b>Agreed Pick-up Date:</b> ${data.agreedDate || "Not set"}</p>
+        ${data.status === 'Collected' ? `<p><b>Actual Pickup Date:</b> ${data.pickupDate || "Not set"}</p>` : ''}
+
+        <div class="section-title"><i class="fas fa-shirt me-1"></i> Clothes &amp; Service Details</div>
+        <p><b>General Notes:</b> ${data.instruction || "None"}</p>
+        <p><b>Total Clothes Dropped:</b> ${data.totalItems ?? 0}</p>
+        <p><b>Remaining Clothes:</b> ${data.remaining ?? 0}</p>
+
+        <p><b>Breakdown:</b></p>
+        <div class="description-box">
+          ${formattedDesc}
+        </div>
+
+        <div class="payment-section">
+          <div class="section-title"><i class="fas fa-money-bill me-1"></i> Payment Information</div>
+          <p><b>Total Amount:</b> ₦${totalAmount.toLocaleString()}</p>
+          <p><b>Total Paid:</b> <span style="color: #145a26; font-weight: bold;">₦${totalPaid.toLocaleString()}</span></p>
+          <p><b>Balance Remaining:</b> <span style="color: ${balance > 0 ? '#962d22' : '#145a26'}; font-weight: bold; font-size: 1.3rem;">₦${balance.toLocaleString()}</span></p>
+
+          <ul class="payment-list mt-3">
+            <li><b>Payment History:</b></li>
+            ${paymentsHtml}
+          </ul>
+        </div>
+      `;
+    }
+
+    async function downloadReceipt() {
+      const element = document.getElementById('receiptPrintArea');
+      const btn = document.getElementById('downloadPdfBtn');
+      const originalLabel = btn ? btn.innerHTML : '';
+
+      if (!window.html2canvas || !window.jspdf) {
+        alert("PDF tools are still loading. Please check your internet and try again.");
+        return;
+      }
+
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Preparing PDF...';
+      }
+
+      window.scrollTo(0, 0);
+
+      // Apply desktop rendering class — this gives the receipt a SOLID WHITE
+      // background for the PDF (overriding the transparent glass on screen)
+      element.classList.add('pdf-render-mode');
+
+      try {
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        const { jsPDF } = window.jspdf;
+
+        const PAGE_W = 210, PAGE_H = 297, MARGIN = 8, FOOTER = 5;
+        const contentW = PAGE_W - 2 * MARGIN;
+        const contentH = PAGE_H - 2 * MARGIN - FOOTER;
+
+        const elRect = element.getBoundingClientRect();
+        const W = elRect.width;
+        const totalH = Math.ceil(elRect.height);
+        const pxPerMm = W / contentW;
+        const pageHpx = contentH * pxPerMm;
+
+        const blocks = [];
+        const leaves = element.querySelectorAll(
+          '.receipt-header, h3, #content p, #content .item-line, #content .service-badge, #content .section-title, #content .payment-list li'
+        );
+        leaves.forEach(el => {
+          const r = el.getBoundingClientRect();
+          let top = r.top - elRect.top;
+          let bottom = r.bottom - elRect.top;
+          const next = el.nextElementSibling;
+
+          if (next && (el.matches('.section-title, .service-badge') || el.matches('.payment-list li:first-child'))) {
+            bottom = Math.max(bottom, next.getBoundingClientRect().bottom - elRect.top);
+          }
+          if (next && el.matches('#content p') && next.classList.contains('description-box') && next.firstElementChild) {
+            bottom = Math.max(bottom, next.firstElementChild.getBoundingClientRect().bottom - elRect.top);
+          }
+          blocks.push({ top, bottom });
+        });
+
+        const pages = [];
+        let start = 0;
+        while (start < totalH - 1) {
+          let end = start + pageHpx;
+          if (end >= totalH - 1) {
+            end = totalH;
+          } else {
+            let changed = true, guard = 0;
+            while (changed && guard++ < 500) {
+              changed = false;
+              for (const b of blocks) {
+                if (b.top > start + 1 && b.top < end - 0.5 && b.bottom > end + 0.5) {
+                  end = b.top;
+                  changed = true;
+                }
+              }
             }
+            if (end - start < pageHpx * 0.4) end = start + pageHpx;
+            end = Math.floor(end);
+          }
+          pages.push([Math.floor(start), end]);
+          start = end;
+        }
+
+        const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+        for (let i = 0; i < pages.length; i++) {
+          const [sy, ey] = pages[i];
+          if (btn) btn.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> Page ${i + 1} of ${pages.length}...`;
+
+          const canvas = await html2canvas(element, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+            x: 0,
+            y: sy,
+            width: Math.ceil(W),
+            height: ey - sy,
+            scrollX: 0,
+            scrollY: 0,
+            windowWidth: 800
+          });
+
+          if (i > 0) pdf.addPage();
+          const imgH = contentW * (canvas.height / canvas.width);
+          pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', MARGIN, MARGIN, contentW, imgH);
+          canvas.width = 0;
+          canvas.height = 0;
+        }
+
+        if (pages.length > 1) {
+          for (let i = 1; i <= pages.length; i++) {
+            pdf.setPage(i);
+            pdf.setFontSize(8);
+            pdf.setTextColor(120);
+            pdf.text(`Page ${i} of ${pages.length}`, PAGE_W / 2, PAGE_H - MARGIN + 1, { align: 'center' });
           }
         }
-        // If a single block is huge, just cut at the page edge
-        if (end - start < pageHpx * 0.4) end = start + pageHpx;
-        end = Math.floor(end);
-      }
-      pages.push([Math.floor(start), end]);
-      start = end;
-    }
 
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-
-    // Render one page-sized slice at a time (small images = no cut-off on phones)
-    for (let i = 0; i < pages.length; i++) {
-      const [sy, ey] = pages[i];
-      if (btn) btn.innerHTML = `⏳ Preparing page ${i + 1} of ${pages.length}...`;
-
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        x: 0,
-        y: sy,
-        width: Math.ceil(W),
-        height: ey - sy,
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: 800 // Forces desktop resolution
-      });
-
-      if (i > 0) pdf.addPage();
-      const imgH = contentW * (canvas.height / canvas.width);
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', MARGIN, MARGIN, contentW, imgH);
-      canvas.width = 0;
-      canvas.height = 0;
-    }
-
-    // Page numbers
-    if (pages.length > 1) {
-      for (let i = 1; i <= pages.length; i++) {
-        pdf.setPage(i);
-        pdf.setFontSize(8);
-        pdf.setTextColor(120);
-        pdf.text(`Page ${i} of ${pages.length}`, PAGE_W / 2, PAGE_H - MARGIN + 1, { align: 'center' });
+        pdf.save(`PastorPal_Receipt_${customerNameForPdf}.pdf`);
+      } catch (err) {
+        console.error("PDF generation failed:", err);
+        alert("Sorry, the receipt could not be downloaded. Please try again.");
+      } finally {
+        // Remove temporary class so the on-screen receipt goes back to transparent glass
+        element.classList.remove('pdf-render-mode');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalLabel;
+        }
       }
     }
 
-    pdf.save(`PastorPal_Receipt_${customerNameForPdf}.pdf`);
-  } catch (err) {
-    console.error("PDF generation failed:", err);
-    alert("Sorry, the receipt could not be downloaded. Please try again.");
-  } finally {
-    // Remove temporary class so screen layout goes back to normal responsive mobile view
-    element.classList.remove('pdf-render-mode');
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = originalLabel;
-    }
-  }
-}
-
-loadCustomer();
-</script>
+    loadCustomer();
+  </script>
 
 </body>
 </html>

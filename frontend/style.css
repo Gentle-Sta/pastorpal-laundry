@@ -1,281 +1,1069 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: 'Segoe UI', sans-serif;
-}
-/* body {
-    background: linear-gradient(to right, skyblue, #87ceeb);
-  } */
-  body {
-    min-height: 100vh;
-    background: linear-gradient(135deg, skyblue, #f9fcff);
-    font-family: "Segoe UI", Tahoma, sans-serif;
-    overflow-x: hidden;
+/* ============================================================
+   PASTOR PAL LAUNDRY — BALANCED LIQUID GLASS
+   Ported from the reference Outfit/Tailwind v4 glass system:
+   • Very faint white fill        rgba(255,255,255,0.03)
+   • Gentle blur                   blur(6px) saturate(1.15)
+   • Multi-layer inset highlights  (top brightest, sides medium)
+   • Soft drop shadow              0 18px 44px rgba(12,16,20,0.16)
+   • Gradient-mask border (::before) — light catching the rim
+   • Horizontal top sheen    (::after)  — specular highlight
+   • Animated scene photo + caustic light overlay
+   ============================================================ */
+
+   :root {
+    --color-ink:    #16181b;
+    --color-mute:   #3e4650;
+    --color-paper:  #f4f6f7;
+    --color-wash:   #e7ebed;
+    --color-bezel:  #14171a;
+    --font-sans:    "Outfit", ui-sans-serif, system-ui, sans-serif;
+  
+    --radius-glass: 1.75rem;   /* 28px */
+    --radius-slab:  2.5rem;    /* 40px */
+    --radius-pill:  999px;
+  
+    /* Reusable glass recipe (declared once, applied everywhere) */
+    --glass-fill:    rgba(255, 255, 255, 0.03);
+    --glass-fill-strong: rgba(255, 255, 255, 0.06);
+    --glass-blur:    blur(6px) saturate(1.15);
+  
+    --glass-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.90),
+      inset 1px 0 0 rgba(255, 255, 255, 0.35),
+      inset -1px 0 0 rgba(255, 255, 255, 0.18),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+      0 18px 44px rgba(12, 16, 20, 0.16);
+  
+    --glass-shadow-lift:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      inset 1px 0 0 rgba(255, 255, 255, 0.45),
+      inset -1px 0 0 rgba(255, 255, 255, 0.25),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.30),
+      0 28px 60px rgba(12, 16, 20, 0.22);
+  
+    --rim-gradient: linear-gradient(
+      150deg,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(255, 255, 255, 0.18) 24%,
+      rgba(255, 255, 255, 0.04) 50%,
+      rgba(255, 255, 255, 0.28) 78%,
+      rgba(255, 255, 255, 0.72) 100%
+    );
+  
+    --sheen: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent);
   }
   
-  .card i {
-    font-size: 40px;
-    color: white;
-    margin-bottom: 15px;
+  /* ---------- Base ---------- */
+  * { box-sizing: border-box; }
+  
+  html {
+    scroll-behavior: smooth;
+    /* Dark fallback so the page is never white if the scene photo doesn't load.
+       Was var(--color-wash) = #e7ebed (light gray) which made mobile look washed out. */
+    background: #1a1d21;
+    color-scheme: light;
   }
-  .card {
-    border: none;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
-    border-radius: 20px;
-    transition: transform 0.3s ease;
+  
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: transparent;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 400;
+    line-height: 1.55;
+    overflow-x: clip;
+    -webkit-font-smoothing: antialiased;
   }
-  .card:hover {
-    transform: translateY(-10px);
+  
+  ::selection { background: rgba(22, 24, 27, 0.14); }
+  :focus-visible { outline: 2px solid var(--color-ink); outline-offset: 3px; }
+  
+  img { max-width: 100%; height: auto; }
+  
+  /* ---------- Scene (fixed animated photo + caustic light overlay) ---------- */
+  .scene {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
   }
-
-  /* Navbar Styling */
-  .logo {
-    width: 100px;
-    height: auto;
+  
+  /* Drop your own laundry photo here, or it falls back to the Unsplash URL.
+     The same image the user had at img-laund.jpeg is referenced first.       */
+  .scene-photo {
+    position: absolute;
+    inset: -4%;
+    /* FIX: split into background-color + background-image + background-size/repeat/position
+       so BOTH images get cover/no-repeat (the old shorthand only applied cover to the
+       Unsplash URL; img-laund.jpeg was getting size:auto + repeat:repeat, which tiled
+       the image and made mobile look washed out / white). */
+    background-color: #1a1d21;
+    background-image:
+      url("img-laund.jpeg"),
+      url("https://images.unsplash.com/photo-1610557892470-55d9e80c0bce?auto=format&fit=crop&w=1920&q=80");
+    background-position: 58% 48%;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    filter: grayscale(0.2) contrast(1.08) brightness(1.06);
+    transform: scale(1.04);
+    animation: ken 32s ease-in-out infinite alternate;
   }
-
-  .brand-title {
-    margin-left: 10px;
-    color: #023e8a;
+  
+  .caustic {
+    position: absolute;
+    inset: -12%;
+    background:
+      radial-gradient(ellipse at 18% 24%, rgba(255, 255, 255, 0.22), transparent 42%),
+      radial-gradient(ellipse at 78% 18%, rgba(255, 255, 255, 0.12), transparent 40%),
+      radial-gradient(ellipse at 62% 78%, rgba(255, 255, 255, 0.14), transparent 46%);
+    mix-blend-mode: soft-light;
+    animation: caustic 18s ease-in-out infinite alternate;
   }
-
-   .nav-link {
-    font-weight: 500;
-    color: #023e8a !important;
-  } 
-
-  /* Base style for nav links */
-.navbar-nav .nav-link {
-  color: 023e8a !important;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-/* Hover effect */
-.navbar-nav .nav-link:hover {
-  color: black !important;  /* Light cyan or change to anything you want */
-  text-decoration: underline;
-}
-
-/* Responsive fix for mobile */
-@media (max-width: 768px) {
-  .navbar-nav {
-     /* Optional: add background to nav on mobile */
-    padding: 10px;
-    border-radius: 10px;
+  
+  /* ---------- Page content sits above the scene ---------- */
+  /* .modal-content is excluded — Bootstrap's modal stack (modal-backdrop z-index 1050,
+     modal z-index 1055) handles its own positioning; adding z-index:1 here created a
+     competing stacking context that broke click handling. */
+  .navbar,
+  .hero,
+  section,
+  .footer,
+  .phone-mockup {
+    position: relative;
+    z-index: 1;
   }
-
-  .navbar-nav .nav-link {
-    color: navy !important;
-    padding: 10px;
+  
+  /* ============================================================
+     GLASS SURFACES — apply the recipe to every panel
+     ============================================================ */
+  
+  /* The base glass recipe — applied to every surface that should look like liquid glass.
+     NOTE: .navbar-collapse, .navbar-toggler, AND .modal-content are intentionally NOT here:
+     - .navbar-collapse / .navbar-toggler: only need glass on mobile (handled in @media below)
+     - .modal-content: needs clean styling without isolation/overflow — those broke Bootstrap's
+       modal click handling and the backdrop was intercepting button clicks */
+  .navbar,
+  .header-text,
+  .glass-card,
+  .footer,
+  .app-stat-card,
+  .app-section-block,
+  .app-bottom-nav,
+  .app-avatar,
+  .brand-mark,
+  .card-icon,
+  .step-number {
+    background: var(--glass-fill) !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-shadow) !important;
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
   }
-
-  .navbar-nav .nav-link:hover {
-    background-color: white;
-    border-radius: 5px;
+  
+  /* Desktop nav collapse: transparent container only — no glass fill, no shadow,
+     no border. This is what was causing the "extra transparent rectangle" inside
+     the navbar. */
+  .navbar-collapse {
+    background: transparent !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
-}
-
-  /* .nav-link:hover {
-    color: black !important;
-    background-color: white !important;
-    border-radius: 10px;
+  .navbar-collapse::before,
+  .navbar-collapse::after { display: none; }
+  
+  /* Override Bootstrap's own card background/border */
+  .card,
+  .glass-card {
+    background: var(--glass-fill) !important;
+    border: 0 !important;
+    box-shadow: var(--glass-shadow) !important;
+    border-radius: var(--radius-glass) !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
   }
-
-  @media (max-width: 768px){
-    .nav-link:hover {
-      color: black !important;
-      background-color: white !important;
-      border-radius: 10px;
-      width: 100px;
-    }
-  } */
-
-  /* Hero Section */
-  .header-section {
-    min-height: 500px;
+  
+  /* Gradient-mask border (::before) — light catching the rounded rim.
+     .modal-content is excluded — the mask-composite was interfering with
+     Bootstrap's modal click handling. */
+  .navbar::before,
+  .header-text::before,
+  .glass-card::before,
+  .footer::before,
+  .app-stat-card::before,
+  .app-section-block::before,
+  .app-bottom-nav::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    background: var(--rim-gradient);
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 2;
+  }
+  
+  /* Horizontal top sheen (::after) — specular highlight.
+     .modal-content is excluded for the same click-handling reason. */
+  .navbar::after,
+  .header-text::after,
+  .glass-card::after,
+  .footer::after,
+  .app-stat-card::after,
+  .app-section-block::after,
+  .app-bottom-nav::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 12%;
+    right: 12%;
+    height: 1px;
+    background: var(--sheen);
+    pointer-events: none;
+    z-index: 2;
+  }
+  
+  /* ---------- Navbar ---------- */
+  .navbar {
+    border: 0 !important;
+    border-radius: var(--radius-pill) !important;
+    margin: 18px auto !important;
+    padding: 10px 24px !important;
+    max-width: 1200px !important;
+    z-index: 1000;
+  }
+  
+  /* Align hero + section containers to the navbar's 1200px max-width so the
+     hero card and phone sit perfectly centered under the PASTOR PAL LAUNDRY header.
+     Multiple selectors + !important to override Bootstrap's media-query max-widths. */
+  .hero .container,
+  .hero .container.header-section,
+  header.hero .container,
+  section .container,
+  section[class*="-section"] .container,
+  .footer .container,
+  .footer.container {
+    max-width: 1200px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+  }
+  
+  /* Remove the RIGHT padding from the phone's column so the phone (with
+     justify-content-end) can sit flush with the navbar's right content edge.
+     We leave Bootstrap's other row/column defaults intact so the grid doesn't break. */
+  .hero .col-lg-6:last-child {
+    padding-right: 0 !important;
+  }
+  
+  .navbar-brand {
+    color: var(--color-ink) !important;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-size: 0.85rem;
     display: flex;
     align-items: center;
+    gap: 0.7rem;
   }
-
-  .header-text h2,
+  
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-pill);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-ink);
+    font-size: 1rem;
+    flex: none;
+  }
+  /* Small glass pills don't need the ::before/::after sheen — they get a hairline ring instead */
+  .brand-mark::before,
+  .card-icon::before,
+  .step-number::before,
+  .app-avatar::before {
+    display: none;
+  }
+  .brand-mark::after,
+  .card-icon::after,
+  .step-number::after,
+  .app-avatar::after {
+    display: none;
+  }
+  
+  .brand-title {
+    font-size: 0.85rem;
+    letter-spacing: 0.16em;
+    font-weight: 600;
+  }
+  
+  .navbar-nav .nav-link {
+    color: var(--color-ink) !important;
+    font-weight: 500;
+    border-radius: var(--radius-pill);
+    padding: 10px 18px !important;
+    transition: background 200ms ease, transform 200ms ease;
+    background: transparent;
+  }
+  .navbar-nav .nav-link:hover,
+  .navbar-nav .nav-link.active {
+    background: rgba(255, 255, 255, 0.28);
+  }
+  
+  .nav-cta {
+    padding: 10px 22px !important;
+    border-radius: var(--radius-pill) !important;
+  }
+  
+  /* ---------- Buttons ---------- */
+  .btn {
+    border-radius: var(--radius-pill) !important;
+    padding: 11px 23px !important;
+    font-weight: 600 !important;
+    font-family: var(--font-sans);
+    letter-spacing: 0.04em;
+    transition: transform 180ms ease, background 200ms ease, box-shadow 200ms ease;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn:active { transform: scale(0.98); }
+  
+  /* Primary ink button — solid dark, like .btn-ink in the reference */
+  .btn-dark,
+  .btn-primary {
+    background: var(--color-ink) !important;
+    border: 0 !important;
+    color: var(--color-paper) !important;
+    box-shadow: 0 8px 20px rgba(12, 16, 20, 0.20) !important;
+  }
+  .btn-dark:hover,
+  .btn-primary:hover {
+    background: var(--color-ink) !important;
+    color: var(--color-paper) !important;
+    transform: scale(1.04);
+    box-shadow: 0 12px 28px rgba(12, 16, 20, 0.26) !important;
+  }
+  
+  /* Glass button — transparent with hover lift */
+  .btn-glass,
+  .btn-outline-light,
+  .btn-custom {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: var(--color-ink) !important;
+    border: 0 !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+      0 8px 22px rgba(12, 16, 20, 0.10) !important;
+  }
+  .btn-glass:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: var(--color-ink) !important;
+  }
+  
+  /* Edit/Delete — keep semantic but soften to glass pills */
+  .btn-warning {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: var(--color-ink) !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 200, 80, 0.55), 0 4px 12px rgba(12,16,20,0.08) !important;
+  }
+  .btn-danger {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: var(--color-ink) !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 110, 110, 0.55), 0 4px 12px rgba(12,16,20,0.08) !important;
+  }
+  
+  /* ---------- Hero ---------- */
+  .hero {
+    padding-top: 10px;
+  }
+  
+  .header-section {
+    min-height: 620px;
+    display: flex;
+    align-items: center;
+    padding: 35px 0 60px;
+  }
+  
+  .header-text {
+    border: 0 !important;
+    border-radius: var(--radius-slab) !important;
+    padding: 2.4rem 2rem !important;
+  }
+  
+  .header-text .eyebrow {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-mute);
+    margin-bottom: 10px;
+  }
+  
   .header-text h1 {
-    color: #023e8a;
-    font-weight: bold;
+    font-size: clamp(2.15rem, 4.6vw, 3.7rem);
+    font-weight: 500;
+    letter-spacing: -0.045em;
+    line-height: 1.02;
+    color: var(--color-ink) !important;
+    margin-bottom: 18px;
+    text-wrap: balance;
   }
-
-  .header-text p {
-    color: #1e1e1e;
-    font-size: 1.1rem;
-    line-height: 1.7;
-  }
-
-  .header-img {
-    height: 700px;
-    object-fit: contain;
-    margin-top: -150px;
-    
-  }
- 
   
-  .hero{
-    margin-top: 100px;
+  .header-text .lead {
+    color: var(--color-mute) !important;
+    line-height: 1.6;
+    font-size: 1.05rem;
+    margin-bottom: 16px;
+    max-width: 38rem;
+    text-wrap: pretty;
   }
-
-  @media (max-width: 768px) {
-    .header-img {
-      height: auto;
-      width: 100%;
-      margin-top: 0;
+  
+  .header-text .tagline {
+    font-style: italic;
+    color: var(--color-ink) !important;
+    font-weight: 400;
+    font-size: 1.05rem;
+    margin-bottom: 26px;
+  }
+  
+  .hero-actions {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-top: 1.4rem;
+  }
+  
+  /* ---------- Phone Mockup (device with bezel ring + transparent screen) ---------- */
+  .phone-mockup {
+    width: 300px;
+    height: 600px;
+    padding: 12px;
+    border-radius: 46px;
+    background: transparent !important;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    /* Solid black bezel + white rim + soft drop shadow (from .device in reference) */
+    box-shadow:
+      0 0 0 11px var(--color-bezel),
+      0 0 0 12px rgba(255, 255, 255, 0.35),
+      0 24px 48px rgba(16, 20, 24, 0.20) !important;
+    overflow: visible;
+    isolation: isolate;
+  }
+  .phone-mockup::before,
+  .phone-mockup::after { display: none; }
+  
+  /* soft shadow under the device */
+  .phone-mockup::after {
+    content: "";
+    position: absolute;
+    left: 12%;
+    right: 12%;
+    bottom: -14px;
+    height: 28px;
+    background: radial-gradient(ellipse, rgba(20, 24, 28, 0.28), transparent 70%);
+    filter: blur(6px);
+    pointer-events: none;
+    z-index: -1;
+    display: block;
+  }
+  
+  .phone-notch {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 5.6rem;
+    height: 1.05rem;
+    background: #0c0d0f;
+    border-radius: var(--radius-pill);
+    z-index: 5;
+  }
+  
+  .phone-screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: transparent !important;
+    border-radius: 34px;
+    overflow: hidden;
+    padding: 40px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    color: var(--color-ink);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28) !important;
+  }
+  
+  .app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .app-header h4 {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 500;
+    letter-spacing: -0.04em;
+    color: var(--color-ink);
+  }
+  .app-label {
+    margin: 0;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--color-mute);
+    font-weight: 600;
+  }
+  .app-avatar {
+    width: 36px; height: 36px;
+    border-radius: var(--radius-pill);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+  }
+  
+  .app-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .app-stat-card {
+    border: 0 !important;
+    border-radius: 1.15rem !important;
+    padding: 0.85rem 0.9rem 0.75rem !important;
+    text-align: center;
+  }
+  .app-stat-card h3 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 500;
+    letter-spacing: -0.05em;
+    color: var(--color-ink);
+  }
+  .app-stat-card p {
+    margin: 0.25rem 0 0;
+    font-size: 0.72rem;
+    color: var(--color-mute);
+    font-weight: 600;
+  }
+  
+  .app-section-block {
+    border: 0 !important;
+    border-radius: 1.15rem !important;
+    padding: 0.7rem 0.75rem !important;
+  }
+  .app-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--color-ink);
+  }
+  .app-section-head .muted { color: var(--color-mute); font-weight: 500; }
+  .app-section-head i { margin-right: 6px; }
+  
+  .slot-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .slot {
+    height: 28px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px dashed rgba(0, 0, 0, 0.18);
+  }
+  .slot.empty::after {
+    content: "+";
+    display: block;
+    text-align: center;
+    line-height: 28px;
+    color: rgba(0, 0, 0, 0.35);
+    font-weight: 700;
+  }
+  
+  .activity { display: flex; flex-direction: column; gap: 0; }
+  .activity-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--color-mute);
+    min-height: 36px;
+  }
+  .activity-item + .activity-item {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex: none;
+    background: transparent;
+    border: 1px solid var(--color-ink);
+  }
+  .dot.done   { border-color: #1e7e34; background: rgba(46, 204, 113, 0.25); }
+  .dot.pending{ border-color: #8a6d00; background: rgba(241, 196, 15, 0.25); }
+  
+  .app-bottom-nav {
+    margin-top: auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    border: 0 !important;
+    border-radius: 1.15rem !important;
+    padding: 10px 4px !important;
+  }
+  .app-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--color-mute);
+    font-size: 0.62rem;
+    gap: 2px;
+  }
+  .app-nav-item i { font-size: 1rem; }
+  .app-nav-item.active {
+    color: var(--color-ink);
+    font-weight: 700;
+  }
+  
+  /* ---------- Generic sections ---------- */
+  section {
+    padding-top: 60px;
+    padding-bottom: 60px;
+  }
+  
+  .section-heading {
+    text-align: center;
+    max-width: 760px;
+    margin: 0 auto 40px;
+  }
+  .section-heading h2 {
+    font-size: clamp(1.6rem, 3vw, 2.1rem);
+    font-weight: 500;
+    letter-spacing: -0.035em;
+    color: var(--color-ink) !important;
+    margin-bottom: 12px;
+    text-wrap: balance;
+  }
+  .section-heading p {
+    color: var(--color-mute) !important;
+    font-size: 1.05rem;
+    line-height: 1.65;
+    margin: 0.8rem 0 0;
+    text-wrap: pretty;
+  }
+  
+  /* ---------- Cards ---------- */
+  .glass-card {
+    transition: transform 300ms ease, background 200ms ease, box-shadow 300ms ease;
+    overflow: hidden;
+  }
+  .glass-card:hover {
+    transform: translateY(-8px);
+    background: rgba(255, 255, 255, 0.06) !important;
+    box-shadow: var(--glass-shadow-lift) !important;
+  }
+  
+  .card-body { padding: 1.25rem 1.25rem 1.35rem !important; position: relative; z-index: 1; }
+  
+  .card-title {
+    color: var(--color-ink) !important;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    margin: 0.85rem 0 0.35rem;
+    font-size: 1.15rem;
+  }
+  .card-text {
+    color: var(--color-mute) !important;
+    line-height: 1.55;
+    margin: 0;
+    font-size: 1rem;
+  }
+  
+  .card-icon {
+    width: 52px; height: 52px;
+    border-radius: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-ink) !important;
+    font-size: 1.25rem;
+    margin-bottom: 14px;
+    background: rgba(255, 255, 255, 0.05) !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+      0 8px 18px rgba(12, 16, 20, 0.08) !important;
+  }
+  
+  /* ---------- How it works step cards ---------- */
+  .step-card .card-body { padding-top: 1.1rem !important; position: relative; }
+  .step-number {
+    position: absolute;
+    top: 16px;
+    right: 18px;
+    width: 32px; height: 32px;
+    border-radius: var(--radius-pill);
+    color: var(--color-ink);
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    background: rgba(255, 255, 255, 0.06) !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+      0 6px 14px rgba(12, 16, 20, 0.08) !important;
+  }
+  
+  /* ---------- Why Choose Us reasons ---------- */
+  .reason .card-body { padding-top: 1.35rem !important; }
+  
+  /* ---------- Mobile App card ---------- */
+  .app-section { background: rgba(255, 255, 255, 0.05) !important; }
+  
+  /* ---------- Footer ---------- */
+  .footer {
+    border: 0 !important;
+    border-radius: var(--radius-glass) !important;
+    margin: 30px 15px 40px;
+    padding: 1rem 1.25rem !important;
+  }
+  .footer-brand {
+    font-weight: 600;
+    color: var(--color-ink);
+    letter-spacing: 0.04em;
+  }
+  .footer-copy {
+    color: var(--color-mute);
+    font-size: 0.92rem;
+  }
+  
+  /* ---------- Tables (modal) ---------- */
+  /* Table now sits on a near-solid modal panel, so we use subtle dark borders
+     and a faint darker tint on the header — readable on the off-white modal. */
+  .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--color-ink);
+    --bs-table-border-color: rgba(12, 16, 20, 0.12);
+    border-radius: 15px;
+    overflow: hidden;
+    color: var(--color-ink);
+  }
+  .table thead th {
+    background: rgba(12, 16, 20, 0.05) !important;
+    color: var(--color-ink) !important;
+    font-weight: 600;
+    border-color: rgba(12, 16, 20, 0.12) !important;
+  }
+  .table tbody tr { transition: background 200ms ease; }
+  .table tbody tr:hover { background: rgba(12, 16, 20, 0.04) !important; }
+  .table-bordered { border: 1px solid rgba(12, 16, 20, 0.12) !important; }
+  .table-bordered td, .table-bordered th {
+    border-color: rgba(12, 16, 20, 0.10) !important;
+    vertical-align: middle;
+  }
+  .table-striped tbody tr:nth-of-type(odd) { background: rgba(12, 16, 20, 0.02) !important; }
+  /* Override Bootstrap's .table-dark (used on the thead) — we want a subtle dark tint, not solid black */
+  .table-dark {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--color-ink);
+    --bs-table-border-color: rgba(12, 16, 20, 0.12);
+    background-color: transparent !important;
+    color: var(--color-ink) !important;
+  }
+  .table-dark th {
+    background: rgba(12, 16, 20, 0.05) !important;
+    color: var(--color-ink) !important;
+    border-color: rgba(12, 16, 20, 0.12) !important;
+  }
+  
+  /* ---------- Modal ---------- */
+  /* The modal panel is a VISIBLE glass card — near-solid background so the user
+     can actually read the price list. NO isolation, NO overflow:hidden, NO pseudo-elements
+     here — those broke Bootstrap's modal click handling (close button, Add Service, Edit,
+     Delete were all unclickable because the backdrop was intercepting pointer events). */
+  .modal-content {
+    border: 1px solid rgba(255, 255, 255, 0.65) !important;
+    border-radius: 2rem !important;
+    background: rgba(244, 246, 247, 0.92) !important;   /* near-solid, still barely translucent */
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: var(--glass-shadow-lift) !important;
+    color: var(--color-ink);
+    /* NO overflow: hidden — let Bootstrap's modal-dialog handle scrolling naturally */
+  }
+  .modal-header,
+  .modal-footer {
+    border-color: rgba(12, 16, 20, 0.08) !important;
+    background: transparent !important;
+  }
+  .modal-title {
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    color: var(--color-ink);
+  }
+  
+  /* Make the close button clearly clickable and well-sized */
+  .modal-content .btn-close {
+    width: 1.25rem;
+    height: 1.25rem;
+    padding: 0.3rem;
+    opacity: 0.6;
+    filter: invert(1) brightness(0.2);  /* dark "X" on the light modal */
+  }
+  .modal-content .btn-close:hover {
+    opacity: 1;
+  }
+  
+  /* Modal backdrop: NO blur anywhere. The page stays completely clear when the
+     modal opens — only a faint dark veil to focus attention on the modal.
+     This fixes the "page goes blurry and no modal visible" issue. */
+  .modal-backdrop {
+    --bs-backdrop-opacity: 0.5;
+    --bs-modal-backdrop-bg: rgba(12, 16, 20, 0.45);
+    background-color: var(--bs-modal-backdrop-bg) !important;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .modal-backdrop.show {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .modal-backdrop:not(.show) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  
+  /* ---------- Forms ---------- */
+  input, select, textarea,
+  .form-control, .form-select {
+    border: 0 !important;
+    border-radius: 0.9rem !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    color: var(--color-ink) !important;
+    padding: 12px 15px !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.48) !important;
+    font-family: var(--font-sans);
+  }
+  input::placeholder, textarea::placeholder { color: var(--color-mute); }
+  input:focus, select:focus, textarea:focus,
+  .form-control:focus, .form-select:focus {
+    background: rgba(255, 255, 255, 0.18) !important;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.65),
+      0 0 0 3px rgba(22, 24, 27, 0.06) !important;
+    border: 0 !important;
+    outline: none !important;
+    color: var(--color-ink) !important;
+  }
+  
+  /* ---------- Mobile nav toggle ---------- */
+  .navbar-toggler {
+    border: 0 !important;
+    border-radius: var(--radius-pill) !important;
+    padding: 8px 12px !important;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.05) !important;
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+      0 4px 12px rgba(12, 16, 20, 0.08) !important;
+  }
+  .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cpath stroke='%2316181b' stroke-linecap='round' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E") !important;
+  }
+  
+  /* ---------- Bootstrap close button override ---------- */
+  /* Generic .btn-close (used elsewhere) — keep it readable */
+  .btn-close {
+    filter: invert(1) brightness(0.2);
+    opacity: 0.7;
+  }
+  .btn-close:hover { opacity: 1; }
+  
+  /* ---------- Keyframes (animated scene) ---------- */
+  @keyframes ken {
+    from { transform: scale(1.04) translate3d(0, 0, 0); }
+    to   { transform: scale(1.10) translate3d(-1.4%, -1%, 0); }
+  }
+  
+  @keyframes caustic {
+    from { transform: translate3d(-2%, 0, 0); }
+    to   { transform: translate3d(2%, -1.5%, 0); }
+  }
+  
+  /* ---------- Fallback for browsers without backdrop-filter ---------- */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    /* Reduced from 0.82 to 0.25 — was making mobile look white when backdrop-filter
+       wasn't supported. 0.25 is transparent enough to see the photo through. */
+    .navbar,
+    .header-text,
+    .glass-card,
+    .footer,
+    .app-stat-card,
+    .app-section-block,
+    .app-bottom-nav {
+      background: rgba(244, 246, 247, 0.25) !important;
     }
   }
+  
+  /* ---------- Responsive ---------- */
+  
+  /* ---- Mobile nav toggle (hamburger) — bigger, cleaner, glass pill ---- */
   @media (max-width: 991px) {
-    .header-text h1 {
-      font-size: 1.7rem;
+    .navbar {
+      padding: 12px 18px !important;
     }
-    .header-text h2 {
-      font-size: 1.3rem;
+    .hero .row {
+      margin-left: 0 !important;
+      margin-right: 0 !important;
     }
-    .navbar-brand {
-      font-size: 1.25rem;
+    .navbar-toggler {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px !important;
+      padding: 0 !important;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.10) !important;
+      -webkit-backdrop-filter: blur(8px) saturate(1.15);
+      backdrop-filter: blur(8px) saturate(1.15);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.85),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+        0 4px 14px rgba(12, 16, 20, 0.10) !important;
+      transition: transform 180ms ease, background 200ms ease;
     }
-    .container-fluid {
-      flex-wrap: wrap;
+    .navbar-toggler:hover {
+      background: rgba(255, 255, 255, 0.18) !important;
+      transform: scale(1.05);
     }
+    .navbar-toggler:focus {
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.85),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+        0 0 0 3px rgba(22, 24, 27, 0.10) !important;
+      outline: none;
+    }
+    /* Make the hamburger icon thicker + darker for better visibility */
+    .navbar-toggler-icon {
+      width: 1.4em;
+      height: 1.4em;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cpath stroke='%2316181b' stroke-linecap='round' stroke-width='2.5' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E") !important;
+    }
+  
+    /* Mobile dropdown panel — generous spacing, full-width buttons */
+    .navbar-collapse {
+      margin-top: 14px;
+      padding: 18px 16px !important;
+      border-radius: 1.5rem !important;
+      background: rgba(255, 255, 255, 0.10) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(1.2);
+      backdrop-filter: blur(14px) saturate(1.2);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.90),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+        0 16px 36px rgba(12, 16, 20, 0.14) !important;
+    }
+    .navbar-collapse .navbar-nav {
+      gap: 10px !important;
+      width: 100%;
+    }
+    .navbar-collapse .nav-item {
+      width: 100%;
+    }
+    /* Full-width buttons inside mobile menu, generous padding, easy to tap */
+    .navbar-collapse .nav-link,
+    .navbar-collapse .btn {
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+      width: 100% !important;
+      min-height: 52px;
+      padding: 14px 20px !important;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 14px !important;
+      margin: 0 !important;
+    }
+    .navbar-collapse .nav-link {
+      background: rgba(255, 255, 255, 0.08) !important;
+      color: var(--color-ink) !important;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+    }
+    .navbar-collapse .nav-link:hover,
+    .navbar-collapse .nav-link.active {
+      background: rgba(255, 255, 255, 0.18) !important;
+    }
+  
+    .header-section { min-height: auto; padding: 25px 0 50px; }
+    .phone-mockup { margin-top: 30px; transform: scale(0.95); }
   }
   
   @media (max-width: 768px) {
-    .header-section {
-      text-align: center;
+    .navbar {
+      border-radius: 1.5rem !important;
+      margin: 10px !important;
+      padding: 12px 16px !important;
     }
-    .header-img {
-      margin: 0 auto;
-    }
-    .reason {
-      flex: 1 1 100%;
-      max-width: 100%;
-    }
+    .header-section { padding: 20px 12px 40px; text-align: center; }
+    .header-text { padding: 1.75rem 1.25rem !important; border-radius: 1.5rem !important; }
+    .header-text h1 { font-size: 2.1rem; }
+    .hero-actions { justify-content: center; }
+    section { padding: 40px 12px; }
+    .footer { border-radius: 1.25rem !important; margin: 20px 10px; }
+    .table-responsive { overflow-x: auto; }
+    .phone-mockup { transform: scale(0.85); margin: 20px auto 0; }
   }
   
   @media (max-width: 480px) {
-    .header-text h1 {
-      font-size: 1.4rem;
-    }
-    .header-text h2 {
-      font-size: 1.1rem;
-    }
-    .logo {
-      width: 45px;
-    }
+    .header-text h1 { font-size: 1.85rem; }
+    .brand-title { font-size: 0.78rem; }
+    .btn { padding: 10px 17px !important; font-size: 0.9rem; }
+    .phone-mockup { width: 270px; height: 540px; transform: scale(0.9); }
   }
-
-  /* Buttons */
-  .btn-custom {
-    background-color: transparent;
-    color: black ;
-    
+  
+  @media (prefers-reduced-motion: reduce) {
+    .scene-photo, .caustic { animation: none; }
+    .glass-card, .btn, .btn-dark, .btn-primary { transition: none; }
+    .glass-card:hover, .btn:hover { transform: none; }
   }
-
-  .btn-custom:hover {
-    background-color: #0096c7;
-    color: #ffffff;
-  }
-
-  .brand-name {
-    font-size: 24px;
-    font-weight: bold;
-    color: #003049;
-  }
-  .card-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 30px;
-    margin: 60px auto;
-    padding: 0 20px;
-  }
-
-  .icon-style {
-    font-size: 2rem;
-    padding: 10px;
-    background-color: #0096c7;
-    color: white;
-    border-radius: 50%;
-    display: inline-block;
-    margin-bottom: 10px;
-  }
-  .how-it-works {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 60px 40px;
-    gap: 30px;
-    margin-top: 60px;
-  }
-  .how-it-works img {
-    width: 45%;
-    height: auto;
-    object-fit: cover;
-    border-radius: 15px;
-  }
-  .how-it-works .text-box {
-    width: 50%;
-    background: white;
-    padding: 30px;
-    border-radius: 15px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  }
-  .how-it-works .text-box h2 {
-    font-size: 28px;
-    color: #0077b6;
-    margin-bottom: 15px;
-  }
-  .how-it-works .text-box p {
-    font-size: 16px;
-    color: #333;
-    line-height: 1.6;
-  }
-  .promise, .why-choose-us, .app-section {
-    text-align: center;
-    padding: 60px 20px;
-    margin-top: 40px;
-  }
-  .promise h2, .why-choose-us h2, .app-section h2 {
-    font-size: 2rem;
-    margin-bottom: 20px;
-    color: #005f73;
-  }
-  .promise p, .app-section p {
-    max-width: 600px;
-    margin: auto;
-    font-size: 1.1rem;
-    color: #444;
-  }
-  .reasons {
-    display: flex;
-    justify-content: center;
-    gap: 40px;
-    flex-wrap: wrap;
-  }
-  .reason {
-    width: 200px;
-  }
-  .reason i {
-    font-size: 2.5rem;
-    color: #0077b6;
-    margin-bottom: 10px;
-  }
-  .reason p {
-    font-size: 1.1rem;
-  }
-  .app-section {
-    background: #f0fbff;
-  }
-  .footer {
-    text-align: center;
-    padding: 20px;
-    background: #003049;
-    color: white;
-    margin-top: 60px;
-  }
+  

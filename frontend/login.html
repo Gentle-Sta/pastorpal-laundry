@@ -6,153 +6,445 @@
   <title>Login | Pastor Pal Laundry</title>
   <link rel="icon" type="image/png" href="image/favicon2.png" sizes="64x64">
 
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome 6 (for the soap icon, matching index.html branding) -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <!-- Google Font: Outfit (same as index.html) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
   <!-- PWA Manifest -->
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#007bff">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ffffff">
 
-<!-- Service Worker Registration -->
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
-        .then((reg) => console.log('Service Worker registered:', reg.scope))
-        .catch((err) => console.log('Service Worker registration failed:', err));
-    });
-  }
-</script>
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((reg) => console.log('Service Worker registered:', reg.scope))
+          .catch((err) => console.log('Service Worker registration failed:', err));
+      });
+    }
+  </script>
+
   <style>
+    /* ============================================================
+       PASTOR PAL LAUNDRY — LOGIN PAGE
+       Same liquid-glass system as index.html:
+       • Fixed animated scene photo + caustic light overlay
+       • Glass card: rgba(255,255,255,0.03) fill + blur(6px) saturate(1.15)
+       • Multi-layer inset highlights + gradient-mask border + top sheen
+       • Same background image (img-laund.jpeg with Unsplash fallback)
+       ============================================================ */
+
+    :root {
+      --color-ink:    #16181b;
+      --color-mute:   #3e4650;
+      --color-paper:  #f4f6f7;
+      --color-wash:   #e7ebed;
+      --color-bezel:  #14171a;
+      --font-sans:    "Outfit", ui-sans-serif, system-ui, sans-serif;
+
+      --radius-glass: 1.75rem;
+      --radius-pill:  999px;
+
+      --glass-fill:   rgba(255, 255, 255, 0.03);
+      --glass-blur:   blur(6px) saturate(1.15);
+
+      --glass-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.90),
+        inset 1px 0 0 rgba(255, 255, 255, 0.35),
+        inset -1px 0 0 rgba(255, 255, 255, 0.18),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+        0 18px 44px rgba(12, 16, 20, 0.16);
+
+      --rim-gradient: linear-gradient(
+        150deg,
+        rgba(255, 255, 255, 0.95) 0%,
+        rgba(255, 255, 255, 0.18) 24%,
+        rgba(255, 255, 255, 0.04) 50%,
+        rgba(255, 255, 255, 0.28) 78%,
+        rgba(255, 255, 255, 0.72) 100%
+      );
+
+      --sheen: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent);
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      /* Dark fallback so the page is never white if the scene photo doesn't load */
+      background: #1a1d21;
+      color-scheme: light;
+    }
+
     body {
-      background: linear-gradient(135deg, skyblue, #f9fcff);
+      margin: 0;
       min-height: 100vh;
+      background: transparent;
+      color: var(--color-ink);
+      font-family: var(--font-sans);
+      font-weight: 400;
+      line-height: 1.55;
+      overflow-x: clip;
+      -webkit-font-smoothing: antialiased;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      padding: 2rem 1rem;
     }
 
+    ::selection { background: rgba(22, 24, 27, 0.14); }
+    :focus-visible { outline: 2px solid var(--color-ink); outline-offset: 3px; }
+
+    /* ---------- Scene (fixed animated photo + caustic light overlay) ---------- */
+    /* Same as index.html — the background photo shows through the glass card */
+    .scene {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .scene-photo {
+      position: absolute;
+      inset: -4%;
+      /* FIX: split background into color + image + size + repeat so BOTH images
+         get cover/no-repeat (old shorthand only applied cover to the Unsplash URL,
+         making img-laund.jpeg tile at auto size — looked white/washed on mobile). */
+      background-color: #1a1d21;
+      background-image:
+        url("img-laund.jpeg"),
+        url("https://images.unsplash.com/photo-1610557892470-55d9e80c0bce?auto=format&fit=crop&w=1920&q=80");
+      background-position: 58% 48%;
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      filter: grayscale(0.2) contrast(1.08) brightness(1.06);
+      transform: scale(1.04);
+      animation: ken 32s ease-in-out infinite alternate;
+    }
+
+    .caustic {
+      position: absolute;
+      inset: -12%;
+      background:
+        radial-gradient(ellipse at 18% 24%, rgba(255, 255, 255, 0.22), transparent 42%),
+        radial-gradient(ellipse at 78% 18%, rgba(255, 255, 255, 0.12), transparent 40%),
+        radial-gradient(ellipse at 62% 78%, rgba(255, 255, 255, 0.14), transparent 46%);
+      mix-blend-mode: soft-light;
+      animation: caustic 18s ease-in-out infinite alternate;
+    }
+
+    /* ---------- Login content above the scene ---------- */
     .login-wrapper {
+      position: relative;
+      z-index: 1;
       width: 100%;
-      max-width: 420px;
+      max-width: 440px;
       padding: 20px;
     }
 
+    /* ---------- Glass card (same recipe as index.html panels) ---------- */
     .login-card {
-      background: rgba(255, 255, 255, 0.45);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 14px;
-      padding: 40px 30px;
-      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.08);
-      
-  border: 1px solid rgba(13, 110, 253, 0.15);
-  
-  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.25);
-
-
-
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      background: var(--glass-fill) !important;
+      -webkit-backdrop-filter: var(--glass-blur);
+      backdrop-filter: var(--glass-blur);
+      box-shadow: var(--glass-shadow) !important;
+      border-radius: var(--radius-glass) !important;
+      padding: 2.5rem 2rem;
     }
 
+    /* Gradient-mask border (::before) — light catching the rounded rim */
+    .login-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      padding: 1.5px;
+      background: var(--rim-gradient);
+      -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+      mask-composite: exclude;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Horizontal top sheen (::after) — specular highlight */
+    .login-card::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 12%;
+      right: 12%;
+      height: 1px;
+      background: var(--sheen);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* ---------- Brand ---------- */
     .brand {
       text-align: center;
-      margin-bottom: 30px;
+      margin-bottom: 2rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand-mark {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-pill);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-ink);
+      color: #fff;
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
     }
 
     .brand h2 {
-      font-weight: 700;
-      color: #222;
-      margin-bottom: 5px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--color-ink);
+      margin: 0 0 0.25rem;
+      font-size: 1.5rem;
     }
 
     .brand p {
-      font-size: 14px;
-      color: #777;
+      font-size: 0.85rem;
+      color: var(--color-mute);
+      margin: 0;
+      letter-spacing: 0.04em;
+    }
+
+    /* ---------- Form ---------- */
+    .login-form {
+      position: relative;
+      z-index: 1;
     }
 
     .form-label {
       font-weight: 600;
-      font-size: 14px;
-      color: #333;
+      font-size: 0.82rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--color-mute);
+      margin-bottom: 0.5rem;
     }
 
+    /* Form inputs — same as index.html: faint fill + inset border + blur */
     .form-control {
-      border-radius: 10px;
-      padding: 12px;
-      font-size: 15px;
+      border: 0 !important;
+      border-radius: 0.9rem !important;
+      background: rgba(255, 255, 255, 0.12) !important;
+      -webkit-backdrop-filter: var(--glass-blur);
+      backdrop-filter: var(--glass-blur);
+      color: var(--color-ink) !important;
+      padding: 0.85rem 1rem !important;
+      font-size: 1rem;
+      font-family: var(--font-sans);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.48) !important;
+      transition: background 200ms ease, box-shadow 200ms ease;
+    }
+
+    .form-control::placeholder {
+      color: var(--color-mute);
     }
 
     .form-control:focus {
-      border-color: #0d6efd;
-      box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.2);
+      background: rgba(255, 255, 255, 0.18) !important;
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.65),
+        0 0 0 3px rgba(22, 24, 27, 0.06) !important;
+      border: 0 !important;
+      outline: none !important;
+      color: var(--color-ink) !important;
     }
 
+    /* ---------- Login button (solid ink, same as .btn-dark in index.html) ---------- */
     .btn-login {
-      background-color: #0d6efd;
-      border: none;
-      border-radius: 10px;
-      padding: 12px;
+      background: var(--color-ink) !important;
+      border: 0 !important;
+      border-radius: var(--radius-pill) !important;
+      color: var(--color-paper) !important;
+      padding: 0.85rem 1.5rem !important;
       font-weight: 600;
-      font-size: 16px;
-      color: white;
+      font-size: 1rem;
+      font-family: var(--font-sans);
+      letter-spacing: 0.04em;
+      box-shadow: 0 8px 20px rgba(12, 16, 20, 0.20) !important;
+      transition: transform 180ms ease, box-shadow 200ms ease;
+      margin-top: 0.5rem;
     }
 
     .btn-login:hover {
-      background: linear-gradient(135deg, skyblue, #f9fcff);
+      background: var(--color-ink) !important;
+      color: var(--color-paper) !important;
+      transform: scale(1.02);
+      box-shadow: 0 12px 28px rgba(12, 16, 20, 0.26) !important;
     }
 
-    .back-link {
-      display: block;
-      text-align: center;
-      margin-top: 20px;
-      font-weight: 500;
-      color: #0d6efd;
-      text-decoration: none;
+    .btn-login:active {
+      transform: scale(0.98);
     }
 
-    .back-link:hover {
-      text-decoration: underline;
-    }
-
+    /* ---------- Messages ---------- */
     #loginMsg {
-      font-size: 14px;
-      margin-top: 15px;
+      font-size: 0.9rem;
+      margin-top: 1rem;
+      text-align: center;
+      font-weight: 600;
+      position: relative;
+      z-index: 1;
+    }
+
+    .text-success {
+      color: #1e7e34 !important;
+    }
+
+    .text-danger {
+      color: #c0392b !important;
+    }
+
+    .text-warning {
+      color: #8a6d00 !important;
     }
 
     .caps-warning {
-      font-size: 13px;
-      margin-top: 5px;
+      font-size: 0.82rem;
+      margin-top: 0.5rem;
+      color: var(--color-mute);
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ---------- Back link ---------- */
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 1.5rem;
+      font-weight: 500;
+      font-size: 0.92rem;
+      color: var(--color-ink);
+      text-decoration: none;
+      padding: 0.6rem 1rem;
+      border-radius: var(--radius-pill);
+      background: rgba(255, 255, 255, 0.05);
+      -webkit-backdrop-filter: var(--glass-blur);
+      backdrop-filter: var(--glass-blur);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.85),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+      transition: background 200ms ease, transform 180ms ease;
+      position: relative;
+      z-index: 1;
+    }
+
+    .back-link:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--color-ink);
+      transform: translateY(-1px);
+      text-decoration: none;
+    }
+
+    /* ---------- Keyframes (animated scene) ---------- */
+    @keyframes ken {
+      from { transform: scale(1.04) translate3d(0, 0, 0); }
+      to   { transform: scale(1.10) translate3d(-1.4%, -1%, 0); }
+    }
+
+    @keyframes caustic {
+      from { transform: translate3d(-2%, 0, 0); }
+      to   { transform: translate3d(2%, -1.5%, 0); }
+    }
+
+    /* ---------- Fallback for browsers without backdrop-filter ---------- */
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .login-card {
+        background: rgba(244, 246, 247, 0.25) !important;
+      }
+    }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 480px) {
+      .login-wrapper {
+        padding: 10px;
+      }
+      .login-card {
+        padding: 2rem 1.5rem;
+        border-radius: 1.5rem !important;
+      }
+      .brand h2 {
+        font-size: 1.35rem;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .scene-photo, .caustic {
+        animation: none;
+      }
+      .btn-login, .back-link {
+        transition: none;
+      }
+      .btn-login:hover, .back-link:hover {
+        transform: none;
+      }
     }
   </style>
 </head>
 <body>
 
+  <!-- ===================== SCENE (same animated background as index.html) ===================== -->
+  <div class="scene" aria-hidden="true">
+    <div class="scene-photo"></div>
+    <div class="caustic"></div>
+  </div>
+
+  <!-- ===================== LOGIN CARD ===================== -->
   <div class="login-wrapper">
     <div class="login-card">
 
       <div class="brand">
+        <div class="brand-mark"><i class="fas fa-soap"></i></div>
         <h2>Pastor Pal Laundry</h2>
         <p>Secure Admin Login</p>
       </div>
 
-      <div class="mb-3">
-        <label for="loginPassword" class="form-label">Password</label>
-        <input
-          type="password"
-          class="form-control"
-          id="loginPassword"
-          placeholder="Enter your password"
-        />
-        <div id="capsLockMsg" class="text-warning caps-warning d-none">
-          ⚠️ Caps Lock is ON
+      <div class="login-form">
+        <div class="mb-3">
+          <label for="loginPassword" class="form-label">Password</label>
+          <input
+            type="password"
+            class="form-control"
+            id="loginPassword"
+            placeholder="Enter your password"
+          />
+          <div id="capsLockMsg" class="text-warning caps-warning d-none">
+            Caps Lock is ON
+          </div>
         </div>
+
+        <button class="btn btn-login w-100" onclick="loginUser()">Login</button>
+
+        <p id="loginMsg" class="text-center fw-semibold"></p>
+
+        <a href="index.html" class="back-link">← Back to Home</a>
       </div>
-
-      <button class="btn btn-login w-100" onclick="loginUser()">Login</button>
-
-      <p id="loginMsg" class="text-center fw-semibold"></p>
-
-      <a href="index.html" class="back-link">← Back to Home</a>
 
     </div>
   </div>
@@ -167,13 +459,13 @@
 
       if (loginPassword === "Princep24") {
         msg.textContent = "Login successful. Redirecting...";
-        msg.className = "text-success text-center";
+        msg.className = "text-success text-center fw-semibold";
         setTimeout(() => {
           window.location.href = "dashboard.html";
         }, 1200);
       } else {
         msg.textContent = "Incorrect password.";
-        msg.className = "text-danger text-center";
+        msg.className = "text-danger text-center fw-semibold";
       }
     }
 

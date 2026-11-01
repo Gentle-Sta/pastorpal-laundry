@@ -1,237 +1,459 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PASTOR PAL Laundry Services</title>
   <link rel="icon" type="image/png" sizes="512x512" href="image/favicon2.png">
 
+  <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <!-- Font Awesome 6 -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <!-- AOS scroll animations -->
   <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
+  <!-- Boxicons (for WhatsApp icon) -->
   <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <!-- Google Font: Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Site styles (liquid-glass system) -->
   <link rel="stylesheet" href="style.css">
 
   <!-- PWA Manifest -->
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#007bff">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ffffff">
 
-<!-- Service Worker Registration -->
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
-        .then((reg) => console.log('Service Worker registered:', reg.scope))
-        .catch((err) => console.log('Service Worker registration failed:', err));
-    });
-  }
-</script>
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((reg) => console.log('Service Worker registered:', reg.scope))
+          .catch((err) => console.log('Service Worker registration failed:', err));
+      });
+    }
+  </script>
+
   <style>
-    .btn-danger { transition: background-color 0.3s ease, box-shadow 0.3s ease; }
-    .container{
-      margin-top: 20px;
-    }
-    @media (max-width: 576px) {
-  #customersTable td, #customersTable th {
-    white-space: nowrap;
-  }
-  .table-responsive {
-    overflow-x: auto;
-  }
-  .btn-sm {
-    display: inline-block;
-    margin: 2px 0;
-  }
-  .modal-dialog {
-    max-width: 95% !important;
-  }
-}
+    /* ============================================================
+       DASHBOARD GLASS OVERRIDES
+       Bumps the glass fill from 0.03 → 0.08 so panels are actually
+       VISIBLE on the dashboard's busy table/form content. Also makes
+       ALL modals + ALL buttons transparent glass (overriding style.css's
+       near-solid modal and solid Bootstrap button colors).
+       ============================================================ */
 
- 
-    .btn-danger:hover { background-color: #c82333; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
-    table { border-radius: 10px; overflow: hidden; }
-    table thead { background: #007bff; color: white; }
-    table tbody tr:hover { background: #f1f1f1; cursor: pointer; }
-    .badge-status { padding: 0.35em 0.6em; border-radius: 0.5em; font-weight: bold; }
+    /* ---- Local glass tokens (slightly stronger than index.html for readability) ---- */
+    :root {
+      --dash-glass:       rgba(255, 255, 255, 0.08);
+      --dash-glass-strong:rgba(255, 255, 255, 0.14);
+      --dash-blur:        blur(8px) saturate(1.2);
+      --dash-border:      rgba(255, 255, 255, 0.40);
+      --dash-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.90),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.25),
+        0 18px 44px rgba(12, 16, 20, 0.18);
+    }
+
+    .container { margin-top: 20px; }
+
+    /* ---- ALL text gets a subtle white text-shadow so dark text is readable
+            on ANY background (dark photo patches, dark modal areas, etc.) ---- */
+    .container, .container h1, .container h2, .container h3, .container h4,
+    .container h5, .container p, .container label, .container span,
+    .container td, .container th, .container .form-control,
+    #smartSummary, #smartSummary * {
+      text-shadow: 0 1px 8px rgba(255, 255, 255, 0.45);
+    }
+
+    /* ---- Logo image in navbar ---- */
+    .navbar .logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-right: 0.7rem;
+      border: 1px solid var(--dash-border);
+      box-shadow: 0 4px 12px rgba(12, 16, 20, 0.12);
+    }
+
+    /* ---- Hero image ---- */
+    .header-img {
+      max-height: 360px;
+      object-fit: contain;
+      border-radius: 1.5rem;
+      filter: drop-shadow(0 18px 40px rgba(12, 16, 20, 0.20));
+    }
+
+    /* ---- Section headings ---- */
+    h3 {
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: var(--color-ink);
+      letter-spacing: -0.02em;
+    }
+
+    /* ---- HERO TEXT CARD — bump fill so it's visible ---- */
+    .header-text.glass-card {
+      background: var(--dash-glass) !important;
+      -webkit-backdrop-filter: var(--dash-blur) !important;
+      backdrop-filter: var(--dash-blur) !important;
+      box-shadow: var(--dash-shadow) !important;
+    }
+
+    /* ---- TABLE — visible glass with dark tint header ---- */
+    #customersTable {
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--dash-glass) !important;
+      -webkit-backdrop-filter: var(--dash-blur);
+      backdrop-filter: var(--dash-blur);
+      box-shadow: var(--dash-shadow) !important;
+    }
+    #customersTable thead,
+    #customersTable thead th {
+      background: rgba(12, 16, 20, 0.12) !important;
+      color: var(--color-ink) !important;
+      border-color: rgba(12, 16, 20, 0.15) !important;
+      font-weight: 600;
+    }
+    #customersTable tbody tr:hover {
+      background: rgba(255, 255, 255, 0.12) !important;
+      cursor: pointer;
+    }
+    #customersTable td,
+    #customersTable th {
+      vertical-align: middle;
+      border-color: rgba(12, 16, 20, 0.10) !important;
+      color: var(--color-ink) !important;
+    }
+
+    /* ---- ADD CUSTOMER FORM — visible glass ---- */
+    #addCustomerForm {
+      background: var(--dash-glass) !important;
+      -webkit-backdrop-filter: var(--dash-blur) !important;
+      backdrop-filter: var(--dash-blur) !important;
+      box-shadow: var(--dash-shadow) !important;
+      border-radius: 1.25rem !important;
+      padding: 1.5rem !important;
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      border: 1px solid var(--dash-border) !important;
+    }
+
+    /* ---- SMART SUMMARY cards (rendered by JS) — visible glass ---- */
+    #smartSummary > div { margin-bottom: 1rem; }
+    #smartSummary .card,
+    #smartSummary > div > div {
+      background: var(--dash-glass) !important;
+      -webkit-backdrop-filter: var(--dash-blur) !important;
+      backdrop-filter: var(--dash-blur) !important;
+      box-shadow: var(--dash-shadow) !important;
+      border: 1px solid var(--dash-border) !important;
+      border-radius: var(--radius-glass) !important;
+      color: var(--color-ink) !important;
+      padding: 1.25rem !important;
+    }
+
+    /* ---- Badge status (semantic colors, glass) ---- */
+    .badge-status {
+      padding: 0.35em 0.6em;
+      border-radius: 0.5em;
+      font-weight: bold;
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.30);
+    }
+    .badge-status.bg-success {
+      background: rgba(46, 204, 113, 0.25) !important;
+      color: #145a26 !important;
+      border-color: rgba(46, 204, 113, 0.5);
+    }
+    .badge-status.bg-warning {
+      background: rgba(241, 196, 15, 0.25) !important;
+      color: #6b5400 !important;
+      border-color: rgba(241, 196, 15, 0.5);
+    }
+    .badge-status.bg-danger {
+      background: rgba(231, 76, 60, 0.25) !important;
+      color: #962d22 !important;
+      border-color: rgba(231, 76, 60, 0.5);
+    }
+    .badge-status.bg-info {
+      background: rgba(52, 152, 219, 0.25) !important;
+      color: #1a5276 !important;
+      border-color: rgba(52, 152, 219, 0.5);
+    }
+    .badge-status.bg-secondary {
+      background: rgba(108, 117, 125, 0.25) !important;
+      color: #2d3338 !important;
+      border-color: rgba(108, 117, 125, 0.5);
+    }
+
+    /* ---- Search input ---- */
+    #clearSearchBtn {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 18px;
+      color: var(--color-mute);
+      display: none;
+      z-index: 5;
+    }
+
+    /* ============================================================
+       MODALS — OVERRIDE style.css's near-solid (0.92) → TRANSPARENT glass
+       Every modal: transparent background + blur + visible text
+       ============================================================ */
+    .modal-content {
+      background: rgba(255, 255, 255, 0.15) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(1.2) !important;
+      backdrop-filter: blur(14px) saturate(1.2) !important;
+      border: 1px solid rgba(255, 255, 255, 0.40) !important;
+      border-radius: 1.5rem !important;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.90),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+        0 28px 60px rgba(12, 16, 20, 0.25) !important;
+      color: var(--color-ink) !important;
+      overflow: hidden;
+    }
+    .modal-header,
+    .modal-footer {
+      background: transparent !important;
+      border-color: rgba(255, 255, 255, 0.25) !important;
+      position: relative;
+      z-index: 3;
+    }
+    .modal-body {
+      position: relative;
+      z-index: 3;
+    }
+    .modal-title {
+      color: var(--color-ink) !important;
+      font-weight: 600;
+      text-shadow: 0 1px 8px rgba(255, 255, 255, 0.5);
+    }
+    .modal-body label,
+    .modal-body p,
+    .modal-body span {
+      color: var(--color-ink) !important;
+      text-shadow: 0 1px 6px rgba(255, 255, 255, 0.45);
+    }
+    .modal-backdrop.show {
+      opacity: 0.3 !important;
+      background: rgba(12, 16, 20, 0.3) !important;
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+    }
+
+    /* WhatsApp modal header — green tint, transparent */
+    #whatsappModal .modal-header.bg-success {
+      background: rgba(25, 135, 84, 0.20) !important;
+      color: #145a26 !important;
+    }
+    #whatsappModal .btn-close-white { filter: invert(1); }
+
+    /* Delete modal header — red tint, transparent */
+    #deleteConfirmModal .modal-header.bg-danger {
+      background: rgba(220, 53, 69, 0.20) !important;
+      color: #962d22 !important;
+    }
+
     .modal-body p { margin: 0.2em 0; }
-    input,select,textarea,button { font-size: 1rem; }
-
-    @media (max-width: 576px) {
-      table { font-size: 13px; }
-      .btn { padding: 4px 8px; font-size: 12px; }
-      .header-img { max-height: 220px; object-fit: contain; }
-      .staff-btn { padding: 8px 12px; font-size: 14px; }
-    }
-    #customerModal{
+    #customerModal {
       word-break: break-word;
       overflow-wrap: break-word;
       white-space: normal;
       max-height: 80vh;
-      overflow-y: auto ;
+      overflow-y: auto;
+    }
+    #whatsappModal textarea { resize: none; }
+
+    /* Image gallery */
+    #imageGallery img {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.2s;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+    }
+    #imageGallery img:hover { transform: scale(1.05); }
+
+    /* ============================================================
+       ALL BUTTONS — TRANSPARENT GLASS
+       Override solid Bootstrap colors (.btn-success, .btn-danger,
+       .btn-secondary, .btn-warning, .btn-primary, .btn-outline-*)
+       Each keeps a semantic colored border + colored text.
+       ============================================================ */
+    .btn-success {
+      background: rgba(46, 204, 113, 0.12) !important;
+      color: #145a26 !important;
+      border: 1px solid rgba(46, 204, 113, 0.5) !important;
+      backdrop-filter: blur(6px);
+    }
+    .btn-success:hover {
+      background: rgba(46, 204, 113, 0.22) !important;
+      color: #145a26 !important;
+    }
+    .btn-danger {
+      background: rgba(231, 76, 60, 0.12) !important;
+      color: #962d22 !important;
+      border: 1px solid rgba(231, 76, 60, 0.5) !important;
+      backdrop-filter: blur(6px);
+      transition: transform 180ms ease, background 200ms ease;
+    }
+    .btn-danger:hover {
+      background: rgba(231, 76, 60, 0.22) !important;
+      color: #962d22 !important;
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: rgba(108, 117, 125, 0.12) !important;
+      color: #2d3338 !important;
+      border: 1px solid rgba(108, 117, 125, 0.5) !important;
+      backdrop-filter: blur(6px);
+    }
+    .btn-secondary:hover {
+      background: rgba(108, 117, 125, 0.22) !important;
+      color: #2d3338 !important;
+    }
+    .btn-warning {
+      background: rgba(241, 196, 15, 0.12) !important;
+      color: #6b5400 !important;
+      border: 1px solid rgba(241, 196, 15, 0.5) !important;
+      backdrop-filter: blur(6px);
+    }
+    .btn-warning:hover {
+      background: rgba(241, 196, 15, 0.22) !important;
+      color: #6b5400 !important;
+    }
+    .btn-primary {
+      background: rgba(13, 110, 253, 0.12) !important;
+      color: #0b4ab8 !important;
+      border: 1px solid rgba(13, 110, 253, 0.5) !important;
+      backdrop-filter: blur(6px);
+    }
+    .btn-primary:hover {
+      background: rgba(13, 110, 253, 0.22) !important;
+      color: #0b4ab8 !important;
+    }
+    .btn-outline-primary {
+      background: rgba(13, 110, 253, 0.08) !important;
+      color: #0b4ab8 !important;
+      border: 1px solid rgba(13, 110, 253, 0.4) !important;
+      backdrop-filter: blur(6px);
+    }
+    .btn-outline-primary:hover {
+      background: rgba(13, 110, 253, 0.18) !important;
+      color: #0b4ab8 !important;
+    }
+    .btn-outline-secondary {
+      background: rgba(108, 117, 125, 0.08) !important;
+      color: #2d3338 !important;
+      border: 1px solid rgba(108, 117, 125, 0.4) !important;
+      backdrop-filter: blur(6px);
+    }
+    .btn-outline-secondary:hover {
+      background: rgba(108, 117, 125, 0.18) !important;
+      color: #2d3338 !important;
     }
 
-    #imageGallery img {
-  width: 100%;
-  height: 120px;
-  object-fit: cover;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: transform 0.2s;
-}
+    /* Inputs / selects / textareas — visible glass */
+    input, select, textarea,
+    .form-control, .form-select {
+      background: rgba(255, 255, 255, 0.14) !important;
+      -webkit-backdrop-filter: blur(6px) !important;
+      backdrop-filter: blur(6px) !important;
+      color: var(--color-ink) !important;
+      border: 1px solid rgba(255, 255, 255, 0.35) !important;
+      border-radius: 0.7rem !important;
+      padding: 0.7rem 0.9rem !important;
+      font-size: 1rem;
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.30) !important;
+    }
+    input::placeholder, textarea::placeholder { color: var(--color-mute); }
+    input:focus, select:focus, textarea:focus,
+    .form-control:focus, .form-select:focus {
+      background: rgba(255, 255, 255, 0.20) !important;
+      border-color: rgba(255, 255, 255, 0.55) !important;
+      box-shadow: 0 0 0 3px rgba(22, 24, 27, 0.08) !important;
+      outline: none !important;
+      color: var(--color-ink) !important;
+    }
+    input[type="date"] { color: var(--color-ink) !important; }
 
-#imageGallery img:hover {
-  transform: scale(1.05);
-}
+    /* ---- General ---- */
+    hr { border-color: rgba(255, 255, 255, 0.25); opacity: 0.5; }
+    .text-muted { color: var(--color-mute) !important; }
 
+    /* ---- Responsive ---- */
+    @media (max-width: 576px) {
+      #customersTable td, #customersTable th { white-space: nowrap; }
+      .table-responsive { overflow-x: auto; }
+      .btn-sm { display: inline-block; margin: 2px 0; }
+      .modal-dialog { max-width: 95% !important; }
+      table { font-size: 13px; }
+      .btn { padding: 4px 8px; font-size: 12px; }
+      .header-img { max-height: 220px; object-fit: contain; }
+      .staff-btn { padding: 8px 12px; font-size: 14px; }
+      #customersTable td:nth-child(4) {
+        max-width: 180px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: pointer;
+      }
+      #addCustomerForm { padding: 1rem !important; }
+    }
 
-    /* WhatsApp modal tweaks */
-#whatsappModal .modal-content {
-    border-radius: 12px;
-}
-
-#whatsappModal .modal-header {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-#whatsappModal .modal-footer {
-    border-top: 1px solid #dee2e6;
-}
-
-#whatsappModal textarea {
-    resize: none;
-}
-
-
-/* Section heading */
-h3 {
-  font-weight: 600;
-  margin-bottom: 15px;
-  color: #1f2937; /* dark gray */
-}
-
-/* Form container */
-#addCustomerForm {
-  background: #ffffff;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e5e7eb;
-}
-
-/* Input fields */
-#addCustomerForm .form-control {
-  border-radius: 10px;
-  padding: 12px 14px;
-  font-size: 14px;
-  border: 1px solid #007bff;
-  transition: all 0.25s ease;
-}
-
-/* Focus effect */
-#addCustomerForm .form-control:focus {
-  border-color: #2563eb; /* blue */
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-}
-
-/* Placeholder styling */
-#addCustomerForm .form-control::placeholder {
-  color: grey;
-  font-size: 13px;
-}
-
-/* Date input alignment */
-#addCustomerForm input[type="date"] {
-  color: black;
-}
-
-/* Smooth spacing on mobile */
-@media (max-width: 768px) {
-  #addCustomerForm {
-    padding: 16px;
-  }
-}
-
-/* 🔥 FIX LARGE ROW HEIGHT ON DESKTOP */
-@media (min-width: 992px) {
-  #customersTable td:last-child {
-    white-space: normal;
-  }
-
-  #customersTable td:last-child button {
-    display: inline-block;
-    margin: 2px;
-  }
-}
-
-#customersTable td,
-#customersTable th {
-  vertical-align: middle;
-}
-
-
-@media (min-width: 992px) {
-  #customersTable td:nth-child(4) {
-    max-width: 320px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-}
-
-.card,
-.table {
-  background: #ffffff;
-  border-radius: 12px;
-}
-
-/* .card {
-  backdrop-filter: blur(6px);
-  background: rgba(255, 255, 255, 0.9);
-} */
-
-
-/* FOR A BETTER TABLE BODY ON MOBILE VIEW*/
-
-/* ✅ Mobile: shorten description with ellipsis */
-@media (max-width: 576px) {
-  #customersTable td:nth-child(4) {
-    max-width: 180px;              /* controls how much shows */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-}
-
-@media (max-width: 576px) {
-  #customersTable td:nth-child(4) {
-    cursor: pointer;
-  }
-}
-
-
-
+    @media (min-width: 992px) {
+      #customersTable td:last-child { white-space: normal; }
+      #customersTable td:last-child button { display: inline-block; margin: 2px; }
+      #customersTable td:nth-child(4) {
+        max-width: 320px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
   </style>
 </head>
 <body>
-  <!-- NAVBAR -->
-  <nav class="navbar navbar-expand-lg py-3 bg-light">
-    <div class="container-fluid d-flex align-items-center">
-      <div class="d-flex align-items-center">
-        <img src="pastorpal-img.jpeg" alt="Logo" class="logo" />
-        <a class="navbar-brand brand-title fs-3 fw-bold" href="#">PASTOR PAL LAUNDRY</a>
-      </div>
 
-      <button class="navbar-toggler bg-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent">
+  <!-- ===================== SCENE ===================== -->
+  <div class="scene" aria-hidden="true">
+    <div class="scene-photo"></div>
+    <div class="caustic"></div>
+  </div>
+
+  <!-- ===================== NAVBAR ===================== -->
+  <nav class="navbar navbar-expand-lg">
+    <div class="container-fluid d-flex align-items-center justify-content-between">
+      <a class="navbar-brand d-flex align-items-center" href="#">
+        <img src="pastorpal-img.jpeg" alt="Logo" class="logo" />
+        <span class="brand-title">PASTOR PAL LAUNDRY</span>
+      </a>
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+              aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
 
       <div class="collapse navbar-collapse justify-content-end" id="navbarSupportedContent">
-        <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-center">
-          <li class="nav-item"><a class="nav-link fw-bold" aria-current="page" href="#">Dashboard</a></li>
+        <ul class="navbar-nav align-items-lg-center gap-lg-3">
           <li class="nav-item">
-            <a class="btn btn-danger fw-semibold px-3 py-2 ms-lg-2" href="index.html">Logout</a>
+            <a class="nav-link active" aria-current="page" href="#">Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="btn btn-dark nav-cta" href="index.html">Logout</a>
           </li>
         </ul>
       </div>
@@ -240,65 +462,45 @@ h3 {
 
   <div class="container head">
     <h1 class="text-center mt-4 fw-bold" id="welcomeMsg"></h1>
-    
-    <!-- SMART SUMMARY DASHBOARD START -->
     <div id="smartSummary" class="row mt-3 mb-2 justify-content-center text-center"></div>
-    <!-- SMART SUMMARY DASHBOARD END -->
-
   </div>
 
-  <!-- HERO -->
+  <!-- ===================== HERO ===================== -->
+  <button id="pwaInstallBtn" class="btn btn-warning d-none">Install App</button>
 
-  <button id="pwaInstallBtn" class="btn btn-warning d-none">📲 Install App</button>  <div class="hero">
-    
+  <header class="hero">
     <div class="container header-section">
-      <div class="row align-items-center w-100">
-        <div class="col-md-6 header-text">
+      <div class="row align-items-center w-100 g-4">
+        <div class="col-md-6 header-text glass-card" data-aos="fade-right">
           <h2>Your Laundry Control Center</h2>
           <p>Track your service prices, monitor stocks, and manage your laundry operations easily — all in one place.</p>
           <p class="fst-italic">"We handle the dirty work — so you can always look your best."</p>
         </div>
 
-        <div class="col-md-6 d-flex align-items-start justify-content-center">
-          <img src="BackgroundEraser_20250717_172309338.png" alt="Laundry Illustration" class="img-fluid header-img ms-5" style="max-height:360px;">
+        <div class="col-md-6 d-flex align-items-start justify-content-center" data-aos="fade-left">
+          <img src="BackgroundEraser_20250717_172309338.png" alt="Laundry Illustration" class="img-fluid header-img ms-5">
         </div>
       </div>
     </div>
-  </div>
+  </header>
 
-  <!-- MAIN: Customers table + form -->
+  <!-- ===================== MAIN: Customers table + form ===================== -->
   <div class="container mt-4 mb-5">
     <h1 class="text-center mb-4">Customer Orders</h1>
 
     <!-- Search -->
     <div class="position-relative mb-3">
-      <input 
-        type="text" 
-        id="searchInput" 
-        placeholder="Search by name, phone, or description" 
+      <input
+        type="text"
+        id="searchInput"
+        placeholder="Search by name, phone, or description"
         class="form-control pe-5"
       >
-    
-      <span 
-        id="clearSearchBtn"
-        style="
-          position: absolute;
-          right: 12px;
-          top: 50%;
-          transform: translateY(-50%);
-          cursor: pointer;
-          font-size: 18px;
-          color: #999;
-          display: none;
-        "
-      >
-        &times;
-      </span>
+      <span id="clearSearchBtn">&times;</span>
     </div>
-    
 
     <!-- Responsive Table -->
-    <div class="table-responsive ">
+    <div class="table-responsive">
       <table class="table table-hover" id="customersTable">
         <thead>
           <tr>
@@ -324,31 +526,24 @@ h3 {
       <div class="col-md-3 col-12"><input type="text" placeholder="Name" id="name" class="form-control" required></div>
       <div class="col-md-3 col-12"><input type="text" placeholder="Phone (e.g. 08012345678 or 2348012345678)" id="phone" class="form-control" required></div>
       <div class="col-md-3 col-12"><input type="text" placeholder="Description" id="description" class="form-control" required></div>
-      <div class="col-md-3 col-12"><input type="date"  id="agreedDate" class="form-control" required></div>
-      <!-- <div class="col-md-2 col-12">
-        <label for="customerImage" class="form-label "></label>
-        <input type="file" id="customerImage" accept="image/*" class="form-control">
-      </div> -->
-      
+      <div class="col-md-3 col-12"><input type="date" id="agreedDate" class="form-control" required></div>
 
-
-      <!-- Special Instruction -->
-<div class="col-md-2 col-12">
-  <select id="instruction" class="form-control" required>
-    <option value="">Special Instruction</option>
-    <option>Washing Only</option>
-    <option>Ironing Only</option>
-    <option>Dry Cleaning</option>
-    <option>Wash & Iron</option>
-    <option>Starch & Iron</option>
-    <option>Spray Starch</option>
-    <option>Light Starch</option>
-    <option>Drying Only</option>
-    <option>Wash and Starch</option>
-    <option>Starch only</option>
-    <option>Other</option>
-  </select>
-</div>
+      <div class="col-md-2 col-12">
+        <select id="instruction" class="form-control" required>
+          <option value="">Special Instruction</option>
+          <option>Washing Only</option>
+          <option>Ironing Only</option>
+          <option>Dry Cleaning</option>
+          <option>Wash &amp; Iron</option>
+          <option>Starch &amp; Iron</option>
+          <option>Spray Starch</option>
+          <option>Light Starch</option>
+          <option>Drying Only</option>
+          <option>Wash and Starch</option>
+          <option>Starch only</option>
+          <option>Other</option>
+        </select>
+      </div>
 
       <div class="col-md-1 col-6"><input type="number" placeholder="No. of Cloths" id="totalItems" class="form-control" required></div>
       <div class="col-md-1 col-6"><input type="number" placeholder="Total Amount" id="totalAmount" class="form-control" required></div>
@@ -356,22 +551,22 @@ h3 {
     </form>
   </div>
 
-  <!-- Customer Detail Modal -->
+  <!-- ===================== Customer Detail Modal ===================== -->
   <div class="modal fade" id="customerModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Customer Details</h5></div>
+        <div class="modal-header"><h5 class="modal-title">Customer Details</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body" id="modalBody"></div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
       </div>
     </div>
   </div>
 
-  <!-- Collect + Paid Modal -->
+  <!-- ===================== Collect + Paid Modal ===================== -->
   <div class="modal fade" id="collectModal" tabindex="-1">
     <div class="modal-dialog">
       <div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Mark Collected</h5></div>
+        <div class="modal-header"><h5 class="modal-title">Mark Collected</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body">
           <label for="pickupDate">Pickup Date:</label>
           <input type="date" id="pickupDate" class="form-control mb-2">
@@ -382,11 +577,11 @@ h3 {
     </div>
   </div>
 
-  <!-- Payment modal -->
+  <!-- ===================== Payment modal ===================== -->
   <div class="modal fade" id="paymentModal" tabindex="-1">
     <div class="modal-dialog">
       <div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Add Payment</h5></div>
+        <div class="modal-header"><h5 class="modal-title">Add Payment</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body">
           <label for="paymentMethod" class="form-label">Method:</label>
           <select id="paymentMethod" class="form-control mb-2">
@@ -397,10 +592,8 @@ h3 {
             <option>POS</option>
             <option>Other</option>
           </select>
-
           <label for="paymentAmount" class="form-label">Amount:</label>
           <input type="number" id="paymentAmount" class="form-control mb-2">
-
           <label for="paymentDate" class="form-label">Date:</label>
           <input type="date" id="paymentDate" class="form-control mb-2">
         </div>
@@ -412,204 +605,384 @@ h3 {
     </div>
   </div>
 
-  
-  <!-- Clothes modal -->
-<div class="modal fade" id="clothesModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Log Clothes Collected</h5></div>
-      <div class="modal-body">
-        <label>No. of Clothes Collected:</label>
-        <input type="number" id="collectedItems" class="form-control mb-2">
-
-        <label>Description:</label>
-        <textarea id="collectedDesc" class="form-control mb-2"></textarea>
-
-        <label>Date:</label>
-        <input type="date" id="collectedDate" class="form-control mb-2">
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button class="btn btn-success" id="saveClothesBtn">Save</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Images Modal -->
-<div class="modal fade" id="imagesModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Customer Images</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-
-      <div class="modal-body">
-        <!-- Upload -->
-        <div class="mb-3 text-center">
-          <label class="btn btn-outline-primary">
-            <i class="fas fa-upload"></i> Add Images
-            <input type="file" id="multiImageInput" accept="image/*" multiple hidden>
-          </label>
-          <p class="small text-muted mt-2">You can upload up to 100 images</p>
+  <!-- ===================== Clothes modal ===================== -->
+  <div class="modal fade" id="clothesModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">Log Clothes Collected</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <label>No. of Clothes Collected:</label>
+          <input type="number" id="collectedItems" class="form-control mb-2">
+          <label>Description:</label>
+          <textarea id="collectedDesc" class="form-control mb-2"></textarea>
+          <label>Date:</label>
+          <input type="date" id="collectedDate" class="form-control mb-2">
         </div>
-
-        <!-- Gallery -->
-        <div class="row g-2" id="imageGallery"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Enlarge Image Modal -->
-<div class="modal fade" id="imagePreviewModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered modal-xl">
-    <div class="modal-content bg-transparent border-0">
-      <img id="previewImage" class="img-fluid rounded shadow">
-    </div>
-  </div>
-</div>
-
-
-
-<!-- WhatsApp Modal -->
-<div class="modal fade" id="whatsappModal" tabindex="-1" aria-labelledby="whatsappModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-success shadow-lg">
-      <div class="modal-header bg-success text-white">
-        <h5 class="modal-title" id="whatsappCustomerName">Send message</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <label for="whatsappMessageType" class="form-label">Select message type:</label>
-        <select id="whatsappMessageType" class="form-select mb-3">
-          <option value="1">Clothes Ready</option>
-          <option value="2">Clothes Collected</option>
-          <option value="3">Custom Message</option>
-          <option value="4">Overdue Reminder</option>
-        </select>
-
-        <div id="customMessageDiv" style="display:none;">
-          <label for="customMessage" class="form-label">Enter your custom message:</label>
-          <textarea id="customMessage" class="form-control" rows="3" placeholder="Type your message here..."></textarea>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-success" id="saveClothesBtn">Save</button>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" id="sendWhatsappBtn" class="btn btn-success">
-          <i class="bi bi-whatsapp"></i> Send
-        </button>
+    </div>
+  </div>
+
+  <!-- ===================== Images Modal ===================== -->
+  <div class="modal fade" id="imagesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Customer Images</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3 text-center">
+            <label class="btn btn-outline-primary">
+              <i class="fas fa-upload"></i> Add Images
+              <input type="file" id="multiImageInput" accept="image/*" multiple hidden>
+            </label>
+            <p class="small text-muted mt-2">You can upload up to 100 images</p>
+          </div>
+          <div class="row g-2" id="imageGallery"></div>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-
-
-<!-- Edit Customer Modal -->
-<div class="modal fade" id="editCustomerModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Edit Customer</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-
-      <div class="modal-body">
-        <input type="hidden" id="editCustomerId">
-
-        <label>Description</label>
-        <textarea id="editDescription" class="form-control mb-2" rows="4"></textarea>
-
-        <label>Total Clothes</label>
-        <input type="number" id="editTotalItems" class="form-control mb-2">
-
-        <label>Total Amount</label>
-        <input type="number" id="editTotalAmount" class="form-control">
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button class="btn btn-primary" id="saveCustomerEditBtn">Save Changes</button>
+  <!-- ===================== Enlarge Image Modal ===================== -->
+  <div class="modal fade" id="imagePreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+      <div class="modal-content bg-transparent border-0">
+        <img id="previewImage" class="img-fluid rounded shadow">
       </div>
     </div>
   </div>
-</div>
 
-
-
-
-<!-- Delete Confirm Modal -->
-<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-danger text-white">
-        <h5 class="modal-title">Confirm Delete</h5>
-      </div>
-
-      <div class="modal-body">
-        <p id="deleteMessage"></p>
-        <input type="password" id="deletePasscodeInput" class="form-control" placeholder="Enter passcode">
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+  <!-- ===================== WhatsApp Modal ===================== -->
+  <div class="modal fade" id="whatsappModal" tabindex="-1" aria-labelledby="whatsappModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-success">
+          <h5 class="modal-title" id="whatsappCustomerName">Send message</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <label for="whatsappMessageType" class="form-label">Select message type:</label>
+          <select id="whatsappMessageType" class="form-select mb-3">
+            <option value="1">Clothes Ready</option>
+            <option value="2">Clothes Collected</option>
+            <option value="3">Custom Message</option>
+            <option value="4">Overdue Reminder</option>
+          </select>
+          <div id="customMessageDiv" style="display:none;">
+            <label for="customMessage" class="form-label">Enter your custom message:</label>
+            <textarea id="customMessage" class="form-control" rows="3" placeholder="Type your message here..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="sendWhatsappBtn" class="btn btn-success">
+            <i class="bi bi-whatsapp"></i> Send
+          </button>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
+  <!-- ===================== Edit Customer Modal ===================== -->
+  <div class="modal fade" id="editCustomerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Customer</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editCustomerId">
+          <label>Description</label>
+          <textarea id="editDescription" class="form-control mb-2" rows="4"></textarea>
+          <label>Total Clothes</label>
+          <input type="number" id="editTotalItems" class="form-control mb-2">
+          <label>Total Amount</label>
+          <input type="number" id="editTotalAmount" class="form-control">
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" id="saveCustomerEditBtn">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-<div class="d-flex justify-content-end gap-2 mb-1">
-  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="jumpTop()">Top</button>
-  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="jumpBottom()">Bottom</button>
-</div>
+  <!-- ===================== Delete Confirm Modal ===================== -->
+  <div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-danger">
+          <h5 class="modal-title">Confirm Delete</h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p id="deleteMessage"></p>
+          <input type="password" id="deletePasscodeInput" class="form-control" placeholder="Enter passcode">
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
+  <div class="d-flex justify-content-end gap-2 mb-1">
+    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="jumpTop()">Top</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="jumpBottom()">Bottom</button>
+  </div>
 
-
-
-
-
-
-
-  <footer class="footer text-center py-3">
-    &copy; 2025 PASTOR PAL Laundry. All rights reserved.
+  <!-- ===================== FOOTER ===================== -->
+  <footer class="footer">
+    <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <span class="footer-brand"><i class="fas fa-soap me-2"></i>Pastor Pal Laundry</span>
+      <span class="footer-copy">&copy; 2026 Pastor Pal Laundry. All rights reserved.</span>
+    </div>
   </footer>
 
-  <!-- Scripts -->
+  <!-- ===================== Scripts ===================== -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase.js"></script>
   <script src="script.js?v=3"></script>
-  
-
 
   <script>
     AOS.init();
 
-    // welcome
     const firstname = localStorage.getItem("firstname");
     const surname = localStorage.getItem("surname");
     const welcomeMsg = document.getElementById("welcomeMsg");
     welcomeMsg.textContent = firstname && surname ? `Welcome!` : "Welcome!";
-    // welcomeMsg.textContent = firstname && surname ? `Welcome, ${firstname} ${surname}!` : "Welcome!";
 
+    // Auto-close mobile nav on link click
+    const navLinks = document.querySelectorAll('.navbar-nav .nav-link, .navbar-nav .btn');
+    const navCollapse = document.getElementById('navbarSupportedContent');
+    navLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        if (navCollapse.classList.contains('show')) {
+          new bootstrap.Collapse(navCollapse, { toggle: false }).hide();
+        }
+      });
+    });
 
+    // ---------- Modal cleanup safety net ----------
+    ['customerModal', 'collectModal', 'paymentModal', 'clothesModal', 'imagesModal',
+     'imagePreviewModal', 'whatsappModal', 'editCustomerModal', 'deleteConfirmModal'
+    ].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('hidden.bs.modal', () => {
+          document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+          document.body.classList.remove('modal-open');
+          document.body.style.removeProperty('overflow');
+          document.body.style.removeProperty('padding-right');
+        });
+      }
+    });
 
+    // ============================================================
+    // SMART SUMMARY — ACCURATE computation
+    // Fetches ALL customers from Supabase and computes real stats.
+    // Falls back to reading the table DOM if Supabase isn't available.
+    // Recomputes automatically whenever the table updates.
+    // ============================================================
 
+    function safeParseJSON(value, fallback = []) {
+      if (Array.isArray(value)) return value;
+      if (!value) return fallback;
+      try {
+        const parsed = typeof value === "string" ? JSON.parse(value) : value;
+        return Array.isArray(parsed) ? parsed : fallback;
+      } catch { return fallback; }
+    }
 
+    function computeStatsFromData(customers) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
+      let total = customers.length;
+      let pending = 0, collected = 0, overdue = 0;
+      let totalRevenue = 0, totalPaid = 0, totalClothes = 0;
 
+      customers.forEach(c => {
+        const status  = String(c.status || '').toLowerCase().trim();
+        const amount  = Number(c.totalAmount) || 0;
+        const items   = Number(c.totalItems) || 0;
 
+        totalRevenue += amount;
+        totalClothes += items;
 
+        // Sum all payments for this customer
+        const payments = safeParseJSON(c.payments, []);
+        const paid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+        totalPaid += paid;
 
+        if (status === 'collected' || status === 'completed') {
+          collected++;
+        } else {
+          pending++;
+          // Overdue = pending AND agreed date is in the past
+          if (c.agreedDate) {
+            const agreed = new Date(c.agreedDate);
+            agreed.setHours(0, 0, 0, 0);
+            if (!isNaN(agreed) && agreed < today) overdue++;
+          }
+        }
+      });
 
+      const outstanding = Math.max(totalRevenue - totalPaid, 0);
 
+      return { total, pending, collected, overdue, totalRevenue, totalPaid, outstanding, totalClothes };
+    }
 
-   
+    function computeStatsFromTable() {
+      const tbody = document.querySelector('#customersTable tbody');
+      if (!tbody) return null;
+
+      const rows = tbody.querySelectorAll('tr');
+      if (rows.length === 0) return null;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      let total = 0, pending = 0, collected = 0, overdue = 0;
+      let totalRevenue = 0;
+
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 7) return;
+        total++;
+
+        // Date is column 0, Total Amount is column 5, Status is column 6
+        const dateText   = cells[0]?.textContent?.trim() || '';
+        const amountText = cells[5]?.textContent?.trim() || '';
+        const statusText = (cells[6]?.textContent?.trim() || '').toLowerCase();
+
+        // Parse amount — strip everything except digits
+        const amount = Number(amountText.replace(/[^\d]/g, '')) || 0;
+        totalRevenue += amount;
+
+        if (statusText.includes('collected') || statusText.includes('completed')) {
+          collected++;
+        } else {
+          pending++;
+          // Check overdue from the date cell
+          const rowDate = new Date(dateText);
+          if (!isNaN(rowDate)) {
+            rowDate.setHours(0, 0, 0, 0);
+            if (rowDate < today) overdue++;
+          }
+        }
+      });
+
+      return { total, pending, collected, overdue, totalRevenue, totalPaid: 0, outstanding: totalRevenue, totalClothes: 0 };
+    }
+
+    function renderSmartSummary(stats) {
+      const container = document.getElementById('smartSummary');
+      if (!container) return;
+
+      const fmt = n => '₦' + Number(n).toLocaleString();
+
+      const cards = [
+        { label: 'Total Customers',    value: stats.total,                    icon: 'fa-users',              tint: 'rgba(13,110,253,0.15)',  border: 'rgba(13,110,253,0.5)' },
+        { label: 'Pending Orders',     value: stats.pending,                  icon: 'fa-clock',              tint: 'rgba(241,196,15,0.15)',  border: 'rgba(241,196,15,0.5)' },
+        { label: 'Collected',          value: stats.collected,                icon: 'fa-circle-check',       tint: 'rgba(46,204,113,0.15)',  border: 'rgba(46,204,113,0.5)' },
+        { label: 'Overdue',            value: stats.overdue,                  icon: 'fa-triangle-exclamation', tint: 'rgba(231,76,60,0.15)',  border: 'rgba(231,76,60,0.5)' },
+        { label: 'Total Revenue',      value: fmt(stats.totalRevenue),        icon: 'fa-sack-dollar',        tint: 'rgba(52,152,219,0.15)',  border: 'rgba(52,152,219,0.5)' },
+        { label: 'Total Paid',         value: fmt(stats.totalPaid),           icon: 'fa-money-check-dollar', tint: 'rgba(46,204,113,0.15)',  border: 'rgba(46,204,113,0.5)' },
+        { label: 'Outstanding',        value: fmt(stats.outstanding),         icon: 'fa-hand-holding-dollar', tint: 'rgba(231,76,60,0.15)',  border: 'rgba(231,76,60,0.5)' },
+        { label: 'Clothes in Care',    value: stats.totalClothes,             icon: 'fa-shirt',              tint: 'rgba(108,117,125,0.15)', border: 'rgba(108,117,125,0.5)' },
+      ];
+
+      container.innerHTML = cards.map(c => `
+        <div class="col-6 col-md-4 col-lg-3">
+          <div class="card h-100" style="background:${c.tint};border:1px solid ${c.border};backdrop-filter:blur(8px) saturate(1.2);box-shadow:var(--dash-shadow);">
+            <div class="card-body text-center" style="padding:1.1rem;">
+              <i class="fas ${c.icon}" style="font-size:1.5rem;margin-bottom:0.5rem;color:var(--color-ink);"></i>
+              <h3 style="font-weight:700;margin:0;font-size:1.5rem;color:var(--color-ink);letter-spacing:-0.03em;">${c.value}</h3>
+              <p style="margin:0.25rem 0 0;font-size:0.8rem;color:var(--color-mute);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">${c.label}</p>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function getSupabaseClient() {
+      // Wait for the supabase library + supabase.js to load
+      let tries = 0;
+      while (tries < 50) {
+        // Check common global variable names that supabase.js might set
+        if (window.supabaseClient && typeof window.supabaseClient.from === 'function') return window.supabaseClient;
+        if (window.sb && typeof window.sb.from === 'function') return window.sb;
+        if (window._supabase && typeof window._supabase.from === 'function') return window._supabase;
+        if (window.db && typeof window.db.from === 'function') return window.db;
+        // Also try a bare global (supabase.js might use `const supabaseClient = ...` at top level)
+        if (typeof supabaseClient !== 'undefined' && typeof supabaseClient.from === 'function') return supabaseClient;
+        await new Promise(r => setTimeout(r, 100));
+        tries++;
+      }
+      return null;
+    }
+
+    async function updateSmartSummary() {
+      // Try Supabase first (has full payment data → accurate outstanding balance)
+      const client = await getSupabaseClient();
+      if (client) {
+        try {
+          const { data, error } = await client.from('customers').select('*');
+          if (!error && data && data.length >= 0) {
+            const stats = computeStatsFromData(data);
+            renderSmartSummary(stats);
+            return;
+          }
+        } catch (e) {
+          console.warn('Smart summary: Supabase fetch failed, falling back to table DOM', e);
+        }
+      }
+
+      // Fallback: read stats from the rendered table (no payment data available)
+      const stats = computeStatsFromTable();
+      if (stats) {
+        renderSmartSummary(stats);
+      }
+    }
+
+    function waitForTableAndCompute() {
+      const tbody = document.querySelector('#customersTable tbody');
+      if (!tbody) {
+        setTimeout(waitForTableAndCompute, 500);
+        return;
+      }
+
+      // Initial compute attempt (tries Supabase + table DOM)
+      updateSmartSummary();
+
+      // Recompute on delays (in case script.js loads data after a few seconds)
+      setTimeout(updateSmartSummary, 2000);
+      setTimeout(updateSmartSummary, 5000);
+
+      // Watch the table for changes → recompute when rows are added/removed/updated
+      const observer = new MutationObserver(() => {
+        clearTimeout(window._summaryDebounce);
+        window._summaryDebounce = setTimeout(updateSmartSummary, 300);
+      });
+      observer.observe(tbody, { childList: true, subtree: true });
+    }
+
+    // Start when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', waitForTableAndCompute);
+    } else {
+      waitForTableAndCompute();
+    }
   </script>
 </body>
 </html>
